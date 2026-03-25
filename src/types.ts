@@ -1,8 +1,15 @@
 export type ModoNotificacao = 'vespera' | 'no_dia' | 'ambos' | 'nenhuma';
 export type StatusPagamento = 'pendente' | 'pago';
 
+export interface Projeto {
+  id: string;
+  nome: string;
+  criadoEm: string;
+}
+
 export interface Despesa {
   id: string;
+  projetoId: string;
   descricao: string;
   valor: number;
   data: string; // YYYY-MM-DD

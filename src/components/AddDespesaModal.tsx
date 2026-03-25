@@ -1,35 +1,54 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { colors } from '../colors';
-import { CATEGORIAS, Categoria, ModoNotificacao, NOTIFICACAO_LABELS } from '../types';
+import { CATEGORIAS, Categoria, Despesa, ModoNotificacao, NOTIFICACAO_LABELS } from '../types';
 
 const MODOS: ModoNotificacao[] = ['vespera', 'no_dia', 'ambos', 'nenhuma'];
+
+type DespesaInput = {
+  descricao: string;
+  valor: number;
+  categoria: string;
+  diaVencimento?: number;
+  notificacao: ModoNotificacao;
+  projetoId: string;
+};
 
 interface Props {
   open: boolean;
   onClose: () => void;
-  onSave: (d: { descricao: string; valor: number; data: string; categoria: string; diaVencimento?: number; notificacao: ModoNotificacao }) => void;
+  onSave: (d: DespesaInput) => void;
+  onUpdate?: (id: string, d: Partial<DespesaInput>) => void;
+  onDelete?: (id: string) => void;
+  editDespesa?: Despesa | null;
+  projetoId: string;
 }
 
-function todayStr() {
-  const h = new Date();
-  return `${h.getFullYear()}-${String(h.getMonth() + 1).padStart(2, '0')}-${String(h.getDate()).padStart(2, '0')}`;
-}
-
-export default function AddDespesaModal({ open, onClose, onSave }: Props) {
+export default function AddDespesaModal({ open, onClose, onSave, onUpdate, onDelete, editDespesa, projetoId }: Props) {
   const [descricao, setDescricao] = useState('');
   const [valor, setValor] = useState('');
-  const [data, setData] = useState(todayStr());
   const [categoria, setCategoria] = useState<Categoria>('Outros');
-  const [temVencimento, setTemVencimento] = useState(true);
   const [diaVencimento, setDiaVencimento] = useState('');
   const [notificacao, setNotificacao] = useState<ModoNotificacao>('vespera');
   const [erro, setErro] = useState('');
 
+  const isEdit = !!editDespesa;
+
+  useEffect(() => {
+    if (editDespesa) {
+      setDescricao(editDespesa.descricao);
+      setValor(editDespesa.valor.toString().replace('.', ','));
+      setCategoria(editDespesa.categoria as Categoria);
+      setDiaVencimento(editDespesa.diaVencimento?.toString() || '');
+      setNotificacao(editDespesa.notificacao);
+      setErro('');
+    }
+  }, [editDespesa]);
+
   if (!open) return null;
 
   const reset = () => {
-    setDescricao(''); setValor(''); setData(todayStr());
-    setCategoria('Outros'); setTemVencimento(true);
+    setDescricao(''); setValor('');
+    setCategoria('Outros');
     setDiaVencimento(''); setNotificacao('vespera'); setErro('');
   };
 
@@ -37,76 +56,65 @@ export default function AddDespesaModal({ open, onClose, onSave }: Props) {
     const valorNum = parseFloat(valor.replace(',', '.'));
     if (!descricao.trim()) return setErro('Informe a descricao');
     if (isNaN(valorNum) || valorNum <= 0) return setErro('Informe um valor valido');
-    if (!data) return setErro('Informe a data');
+    if (!diaVencimento.trim()) return setErro('Informe o dia de vencimento');
+    const diaVenc = parseInt(diaVencimento, 10);
+    if (isNaN(diaVenc) || diaVenc < 1 || diaVenc > 31) return setErro('Dia invalido (1-31)');
 
-    let diaVenc: number | undefined;
-    if (temVencimento) {
-      if (!diaVencimento.trim()) return setErro('Informe o dia de vencimento');
-      diaVenc = parseInt(diaVencimento, 10);
-      if (isNaN(diaVenc) || diaVenc < 1 || diaVenc > 31) return setErro('Dia invalido (1-31)');
+    const data: DespesaInput = {
+      descricao: descricao.trim(), valor: valorNum, categoria,
+      diaVencimento: diaVenc, notificacao, projetoId,
+    };
+
+    if (isEdit && onUpdate) {
+      onUpdate(editDespesa!.id, data);
+    } else {
+      onSave(data);
     }
-
-    onSave({
-      descricao: descricao.trim(), valor: valorNum, data, categoria,
-      diaVencimento: diaVenc,
-      notificacao: temVencimento ? notificacao : 'nenhuma',
-    });
     reset();
     onClose();
   };
 
+  const handleDelete = () => {
+    if (isEdit && onDelete && confirm(`Remover "${editDespesa!.descricao}"?`)) {
+      onDelete(editDespesa!.id);
+      reset();
+      onClose();
+    }
+  };
+
   return (
-    <div style={S.overlay} onClick={onClose}>
+    <div style={S.overlay} onClick={() => { reset(); onClose(); }}>
       <div style={S.modal} onClick={(e) => e.stopPropagation()}>
         <div style={S.header}>
-          <span style={{ fontSize: 20, fontWeight: 700 }}>Nova Despesa</span>
+          <span style={{ fontSize: 20, fontWeight: 700 }}>{isEdit ? 'Editar Despesa' : 'Nova Despesa'}</span>
           <button onClick={() => { reset(); onClose(); }} style={S.closeBtn}>✕</button>
         </div>
 
         <div style={S.form}>
           <label style={S.label}>Descricao</label>
           <input style={S.input} value={descricao} onChange={(e) => setDescricao(e.target.value)}
-            placeholder="Ex: Almoço, Uber, Conta de luz..." />
+            placeholder="Ex: Netflix, Aluguel, Conta de luz..." />
 
           <label style={S.label}>Valor (R$)</label>
           <input style={S.input} value={valor} onChange={(e) => setValor(e.target.value)}
             placeholder="0,00" inputMode="decimal" />
 
-          <label style={S.label}>Data</label>
-          <input style={S.input} type="date" value={data} onChange={(e) => setData(e.target.value)} />
+          <label style={S.label}>Dia de vencimento (1-31)</label>
+          <input style={S.input} value={diaVencimento}
+            onChange={(e) => setDiaVencimento(e.target.value.replace(/\D/g, '').slice(0, 2))}
+            placeholder="Ex: 10" inputMode="numeric" />
 
-          {/* Vencimento */}
+          {/* Notificacao */}
           <div style={S.vencSection}>
-            <div style={S.vencHeader}>
-              <div>
-                <div style={{ fontSize: 15, fontWeight: 600 }}>Dia de vencimento mensal</div>
-                <div style={{ fontSize: 12, color: colors.textMuted, marginTop: 2 }}>Ativar para receber lembretes</div>
-              </div>
-              <label style={S.toggle}>
-                <input type="checkbox" checked={temVencimento} onChange={(e) => setTemVencimento(e.target.checked)} style={{ display: 'none' }} />
-                <div style={{ ...S.toggleTrack, background: temVencimento ? colors.primaryDark : colors.border }}>
-                  <div style={{ ...S.toggleThumb, transform: temVencimento ? 'translateX(20px)' : 'translateX(0)' }} />
-                </div>
-              </label>
+            <div style={{ fontSize: 15, fontWeight: 600, marginBottom: 8 }}>Tipo de lembrete</div>
+            <div style={S.chips}>
+              {MODOS.map((m) => (
+                <button key={m} onClick={() => setNotificacao(m)}
+                  style={{ ...S.chip, ...(notificacao === m ? S.chipActiveNotif : {}) }}>
+                  {NOTIFICACAO_LABELS[m]}
+                </button>
+              ))}
             </div>
-
-            {temVencimento && (
-              <>
-                <input style={{ ...S.input, marginTop: 10 }} value={diaVencimento}
-                  onChange={(e) => setDiaVencimento(e.target.value.replace(/\D/g, '').slice(0, 2))}
-                  placeholder="Dia do mes (1-31)" inputMode="numeric" />
-
-                <label style={{ ...S.label, marginTop: 12 }}>Tipo de lembrete</label>
-                <div style={S.chips}>
-                  {MODOS.map((m) => (
-                    <button key={m} onClick={() => setNotificacao(m)}
-                      style={{ ...S.chip, ...(notificacao === m ? S.chipActiveNotif : {}) }}>
-                      {NOTIFICACAO_LABELS[m]}
-                    </button>
-                  ))}
-                </div>
-              </>
-            )}
           </div>
 
           <label style={S.label}>Categoria</label>
@@ -122,7 +130,14 @@ export default function AddDespesaModal({ open, onClose, onSave }: Props) {
           {erro && <div style={S.erro}>{erro}</div>}
         </div>
 
-        <button style={S.saveBtn} onClick={handleSave}>Salvar</button>
+        <div style={{ padding: '0 20px 32px', display: 'flex', gap: 10 }}>
+          {isEdit && (
+            <button style={S.deleteBtn} onClick={handleDelete}>Remover</button>
+          )}
+          <button style={{ ...S.saveBtn, flex: 1 }} onClick={handleSave}>
+            {isEdit ? 'Salvar alteracoes' : 'Salvar'}
+          </button>
+        </div>
       </div>
     </div>
   );
@@ -158,17 +173,6 @@ const S = {
     background: colors.card, borderRadius: 14, padding: 14, marginTop: 16,
     border: `1px solid ${colors.primary}40`,
   },
-  vencHeader: {
-    display: 'flex', justifyContent: 'space-between', alignItems: 'center',
-  },
-  toggle: { cursor: 'pointer' },
-  toggleTrack: {
-    width: 44, height: 24, borderRadius: 12, padding: 2, transition: 'background 0.2s',
-  },
-  toggleThumb: {
-    width: 20, height: 20, borderRadius: 10, background: colors.white,
-    transition: 'transform 0.2s', boxShadow: '0 1px 3px rgba(0,0,0,0.3)',
-  },
   chips: {
     display: 'flex', flexWrap: 'wrap' as const, gap: 8, marginTop: 4,
   },
@@ -188,6 +192,10 @@ const S = {
   },
   saveBtn: {
     background: colors.primary, color: colors.white, border: 'none', padding: 16,
-    margin: '0 20px 32px', borderRadius: 14, fontSize: 17, fontWeight: 700, cursor: 'pointer',
+    borderRadius: 14, fontSize: 17, fontWeight: 700, cursor: 'pointer',
+  },
+  deleteBtn: {
+    background: 'transparent', color: colors.danger, border: `1px solid ${colors.danger}`,
+    padding: 16, borderRadius: 14, fontSize: 15, fontWeight: 600, cursor: 'pointer',
   },
 };

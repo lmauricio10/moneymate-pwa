@@ -1,17 +1,18 @@
 import { useState, useRef } from 'react';
 import { colors } from '../colors';
-import { Despesa, NotificacaoConfig } from '../types';
+import { Despesa, NotificacaoConfig, Projeto } from '../types';
 import { enviarNotificacaoTeste, enviarNotificacaoDespesa, notificacoesSuportadas } from '../notifications';
 import { exportData, importData } from '../store';
 
 interface Props {
   config: NotificacaoConfig;
   despesas: Despesa[];
+  projetos: Projeto[];
   updateConfig: (c: Partial<NotificacaoConfig>) => void;
-  importDespesas: (d: Despesa[], c?: NotificacaoConfig) => void;
+  importDespesas: (d: Despesa[], c?: NotificacaoConfig, p?: Projeto[]) => void;
 }
 
-export default function SettingsScreen({ config, despesas, updateConfig, importDespesas }: Props) {
+export default function SettingsScreen({ config, despesas, projetos, updateConfig, importDespesas }: Props) {
   const [limiteInput, setLimiteInput] = useState(config.limiteMensal.toString());
   const [horaInput, setHoraInput] = useState(
     `${String(config.horarioPadrao.hora).padStart(2, '0')}:${String(config.horarioPadrao.minuto).padStart(2, '0')}`,
@@ -49,7 +50,7 @@ export default function SettingsScreen({ config, despesas, updateConfig, importD
     alert(`Limite salvo: R$ ${valor.toFixed(2)}`);
   };
 
-  const handleExport = () => exportData(despesas, config);
+  const handleExport = () => exportData(despesas, config, projetos);
 
   const handleImport = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -57,7 +58,7 @@ export default function SettingsScreen({ config, despesas, updateConfig, importD
     try {
       const data = await importData(file);
       if (confirm(`Importar ${data.despesas.length} despesa(s)? Isso substituira todos os dados atuais.`)) {
-        importDespesas(data.despesas, data.config);
+        importDespesas(data.despesas, data.config, data.projetos);
         alert(`${data.despesas.length} despesa(s) importada(s)!`);
       }
     } catch (err) {

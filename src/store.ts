@@ -1,7 +1,15 @@
-import { Despesa, NotificacaoConfig } from './types';
+import { Despesa, NotificacaoConfig, Projeto } from './types';
 
 const STORAGE_KEY = 'moneymate_despesas';
 const CONFIG_KEY = 'moneymate_config';
+const PROJETOS_KEY = 'moneymate_projetos';
+const PROJETO_ATIVO_KEY = 'moneymate_projeto_ativo';
+
+const DEFAULT_PROJETO: Projeto = {
+  id: 'pessoal',
+  nome: 'Pessoal',
+  criadoEm: new Date().toISOString(),
+};
 
 export const DEFAULT_CONFIG: NotificacaoConfig = {
   alertaLimite: false,
@@ -27,13 +35,40 @@ function resetarStatusMensal(despesas: Despesa[]): { atualizadas: Despesa[]; mud
   return { atualizadas, mudou };
 }
 
+export function loadProjetos(): Projeto[] {
+  try {
+    const raw = localStorage.getItem(PROJETOS_KEY);
+    if (!raw) return [DEFAULT_PROJETO];
+    const projetos: Projeto[] = JSON.parse(raw);
+    return projetos.length > 0 ? projetos : [DEFAULT_PROJETO];
+  } catch {
+    return [DEFAULT_PROJETO];
+  }
+}
+
+export function saveProjetos(projetos: Projeto[]) {
+  localStorage.setItem(PROJETOS_KEY, JSON.stringify(projetos));
+}
+
+export function loadProjetoAtivo(): string {
+  return localStorage.getItem(PROJETO_ATIVO_KEY) || 'pessoal';
+}
+
+export function saveProjetoAtivo(id: string) {
+  localStorage.setItem(PROJETO_ATIVO_KEY, id);
+}
+
 export function loadDespesas(): Despesa[] {
   try {
     const raw = localStorage.getItem(STORAGE_KEY);
     if (!raw) return [];
     let despesas: Despesa[] = JSON.parse(raw);
-    // Migration
-    despesas = despesas.map((d) => ({ ...d, status: d.status || 'pendente' }));
+    // Migration: add status and projetoId
+    despesas = despesas.map((d) => ({
+      ...d,
+      status: d.status || 'pendente',
+      projetoId: d.projetoId || 'pessoal',
+    }));
     const { atualizadas, mudou } = resetarStatusMensal(despesas);
     if (mudou) {
       localStorage.setItem(STORAGE_KEY, JSON.stringify(atualizadas));
@@ -62,8 +97,8 @@ export function saveConfig(config: NotificacaoConfig) {
   localStorage.setItem(CONFIG_KEY, JSON.stringify(config));
 }
 
-export function exportData(despesas: Despesa[], config: NotificacaoConfig) {
-  const data = JSON.stringify({ despesas, config, exportadoEm: new Date().toISOString() }, null, 2);
+export function exportData(despesas: Despesa[], config: NotificacaoConfig, projetos: Projeto[]) {
+  const data = JSON.stringify({ despesas, config, projetos, exportadoEm: new Date().toISOString() }, null, 2);
   const blob = new Blob([data], { type: 'application/json' });
   const url = URL.createObjectURL(blob);
   const a = document.createElement('a');
@@ -73,7 +108,7 @@ export function exportData(despesas: Despesa[], config: NotificacaoConfig) {
   URL.revokeObjectURL(url);
 }
 
-export function importData(file: File): Promise<{ despesas: Despesa[]; config?: NotificacaoConfig }> {
+export function importData(file: File): Promise<{ despesas: Despesa[]; config?: NotificacaoConfig; projetos?: Projeto[] }> {
   return new Promise((resolve, reject) => {
     const reader = new FileReader();
     reader.onload = () => {
@@ -83,7 +118,7 @@ export function importData(file: File): Promise<{ despesas: Despesa[]; config?: 
           reject(new Error('Arquivo invalido'));
           return;
         }
-        resolve({ despesas: parsed.despesas, config: parsed.config });
+        resolve({ despesas: parsed.despesas, config: parsed.config, projetos: parsed.projetos });
       } catch {
         reject(new Error('JSON invalido'));
       }
