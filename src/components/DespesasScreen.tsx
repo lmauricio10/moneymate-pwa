@@ -10,6 +10,8 @@ const MESES = [
 
 function fmt(v: number) { return `R$ ${v.toFixed(2).replace('.', ',')}`; }
 
+const MAX_VISIBLE_PROJETOS = 3;
+
 interface Props {
   despesas: Despesa[];
   config: NotificacaoConfig;
@@ -105,18 +107,33 @@ export default function DespesasScreen({
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
-      {/* Projeto selector */}
+      {/* Projeto tabs */}
       <div style={S.projetoBar}>
-        <button onClick={() => setShowProjetoMenu(!showProjetoMenu)} style={S.projetoBtn}>
-          <span style={{ fontSize: 16, fontWeight: 700 }}>{projetoNome}</span>
-          <span style={{ fontSize: 12, color: colors.textMuted, marginLeft: 6 }}>▼</span>
-        </button>
+        <div style={S.projetoTabs}>
+          {projetos.slice(0, MAX_VISIBLE_PROJETOS).map((p) => (
+            <button key={p.id} onClick={() => selectProjeto(p.id)}
+              onContextMenu={(e) => { e.preventDefault(); handleRenameProjeto(p.id, p.nome); }}
+              style={{ ...S.projetoTab, ...(p.id === projetoAtivo ? S.projetoTabActive : {}) }}>
+              {p.nome}
+            </button>
+          ))}
+          {projetos.length > MAX_VISIBLE_PROJETOS && (
+            <button onClick={() => setShowProjetoMenu(!showProjetoMenu)}
+              style={{ ...S.projetoTab, minWidth: 36, padding: '6px 10px' }}>
+              ···
+            </button>
+          )}
+          <button onClick={() => {
+            const nome = prompt('Nome do novo projeto:');
+            if (nome && nome.trim()) addProjeto(nome.trim());
+          }} style={S.projetoAddBtn}>+</button>
+        </div>
       </div>
 
-      {/* Projeto dropdown */}
-      {showProjetoMenu && (
+      {/* Overflow menu for extra projetos */}
+      {showProjetoMenu && projetos.length > MAX_VISIBLE_PROJETOS && (
         <div style={S.projetoMenu}>
-          {projetos.map((p) => (
+          {projetos.slice(MAX_VISIBLE_PROJETOS).map((p) => (
             <div key={p.id} style={{ ...S.projetoItem, ...(p.id === projetoAtivo ? S.projetoItemActive : {}) }}>
               <button onClick={() => { selectProjeto(p.id); setShowProjetoMenu(false); }}
                 style={{ flex: 1, background: 'none', border: 'none', color: colors.text, textAlign: 'left', fontSize: 15, cursor: 'pointer', padding: '10px 0' }}>
@@ -130,12 +147,6 @@ export default function DespesasScreen({
               )}
             </div>
           ))}
-          <div style={{ display: 'flex', gap: 8, marginTop: 8 }}>
-            <input style={{ ...S.projetoInput, flex: 1 }} value={novoProjetoNome}
-              onChange={(e) => setNovoProjetoNome(e.target.value)}
-              placeholder="Novo projeto..." onKeyDown={(e) => e.key === 'Enter' && handleAddProjeto()} />
-            <button onClick={handleAddProjeto} style={S.projetoAddBtn}>+</button>
-          </div>
         </div>
       )}
 
@@ -242,10 +253,17 @@ const S = {
     padding: '8px 16px',
     display: 'flex', alignItems: 'center',
   },
-  projetoBtn: {
-    background: colors.card, border: `1px solid ${colors.border}`, borderRadius: 10,
-    padding: '8px 16px', cursor: 'pointer', color: colors.text,
-    display: 'flex', alignItems: 'center',
+  projetoTabs: {
+    display: 'flex', gap: 6, alignItems: 'center', overflow: 'auto',
+    width: '100%',
+  },
+  projetoTab: {
+    background: colors.card, border: `1px solid ${colors.border}`, borderRadius: 20,
+    padding: '6px 16px', cursor: 'pointer', color: colors.textSecondary,
+    fontSize: 14, fontWeight: 600, whiteSpace: 'nowrap' as const,
+  },
+  projetoTabActive: {
+    background: colors.primaryDark, borderColor: colors.primary, color: colors.white,
   },
   projetoMenu: {
     background: colors.surface, border: `1px solid ${colors.border}`, borderRadius: 12,
@@ -260,13 +278,10 @@ const S = {
   projetoActionBtn: {
     background: 'none', border: 'none', color: colors.textMuted, fontSize: 16, cursor: 'pointer', padding: '8px 6px',
   },
-  projetoInput: {
-    background: colors.inputBg, color: colors.text, border: `1px solid ${colors.border}`,
-    borderRadius: 8, padding: 10, fontSize: 14, outline: 'none',
-  },
   projetoAddBtn: {
     background: colors.primary, color: colors.white, border: 'none',
-    borderRadius: 8, width: 40, fontSize: 20, cursor: 'pointer',
+    borderRadius: 20, width: 32, height: 32, fontSize: 18, cursor: 'pointer',
+    display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0,
   },
   mesNav: {
     display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '8px 20px',
