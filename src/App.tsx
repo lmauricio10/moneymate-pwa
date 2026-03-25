@@ -135,6 +135,27 @@ export default function App() {
     saveProjetoAtivo(id);
   }, []);
 
+  const handleCloudShare = useCallback(async () => {
+    const data = JSON.stringify({ despesas, config, projetos, exportadoEm: new Date().toISOString() }, null, 2);
+    const file = new File([data], `moneymate_${new Date().toISOString().split('T')[0]}.json`, { type: 'application/json' });
+
+    if (navigator.share && navigator.canShare?.({ files: [file] })) {
+      try {
+        await navigator.share({ files: [file], title: 'MoneyMate Backup' });
+      } catch (e: any) {
+        if (e.name !== 'AbortError') alert('Erro ao compartilhar');
+      }
+    } else {
+      // Fallback: download
+      const url = URL.createObjectURL(file);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = file.name;
+      a.click();
+      URL.revokeObjectURL(url);
+    }
+  }, [despesas, config, projetos]);
+
   const importDespesas = useCallback((novas: Despesa[], novaConfig?: NotificacaoConfig, novosProjetos?: Projeto[]) => {
     const migradas = novas.map((d) => ({ ...d, status: d.status || ('pendente' as const), projetoId: d.projetoId || 'pessoal' }));
     setDespesas(migradas);
@@ -174,11 +195,22 @@ export default function App() {
         background: colors.surface,
         padding: '14px 20px',
         borderBottom: `1px solid ${colors.border}`,
-        textAlign: 'center',
-        fontWeight: 700,
-        fontSize: 17,
+        display: 'flex', justifyContent: 'space-between', alignItems: 'center',
       }}>
-        {tab === 'despesas' ? 'MoneyMate' : 'Configuracoes'}
+        <div style={{ width: 36 }} />
+        <span style={{ fontWeight: 700, fontSize: 17 }}>
+          {tab === 'despesas' ? 'MoneyMate' : 'Configuracoes'}
+        </span>
+        <button onClick={handleCloudShare} style={{
+          background: 'none', border: 'none', cursor: 'pointer', padding: 4,
+          color: colors.primary, fontSize: 20,
+        }} title="Salvar na nuvem">
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M18 10h-1.26A8 8 0 1 0 9 20h9a5 5 0 0 0 0-10z"/>
+            <polyline points="8 16 12 12 16 16"/>
+            <line x1="12" y1="12" x2="12" y2="21"/>
+          </svg>
+        </button>
       </div>
 
       {/* Content */}
