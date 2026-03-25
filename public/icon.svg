@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+  <rect width="512" height="512" rx="108" fill="#1a1a2e"/>
+  <rect x="40" y="40" width="432" height="432" rx="80" fill="#0f3460"/>
+  <text x="256" y="300" text-anchor="middle" font-family="system-ui" font-weight="800" font-size="220" fill="#6C63FF">M</text>
+  <text x="256" y="420" text-anchor="middle" font-family="system-ui" font-weight="600" font-size="64" fill="#A0A0B2">$</text>
+</svg>
