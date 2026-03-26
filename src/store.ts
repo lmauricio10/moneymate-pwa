@@ -155,15 +155,22 @@ export async function subscribeToPush(): Promise<boolean> {
   try {
     if (!('serviceWorker' in navigator) || !('PushManager' in window)) return false;
 
+    // Request notification permission first
+    if (Notification.permission === 'default') {
+      const result = await Notification.requestPermission();
+      if (result !== 'granted') return false;
+    }
+    if (Notification.permission !== 'granted') return false;
+
     const reg = await navigator.serviceWorker.ready;
     let sub = await reg.pushManager.getSubscription();
 
     if (!sub) {
       const key = urlBase64ToUint8Array(VAPID_PUBLIC_KEY);
       sub = await reg.pushManager.subscribe({
-        userNotificationConsent: true,
-        applicationServerKey: key,
-      } as any);
+        userVisibleOnly: true,
+        applicationServerKey: key as any,
+      });
     }
 
     if (!sub) return false;
