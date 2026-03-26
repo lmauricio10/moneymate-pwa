@@ -18,6 +18,7 @@ export default function SettingsScreen({ config, despesas, projetos, updateConfi
     `${String(config.horarioPadrao.hora).padStart(2, '0')}:${String(config.horarioPadrao.minuto).padStart(2, '0')}`,
   );
   const fileRef = useRef<HTMLInputElement>(null);
+  const [showGuia, setShowGuia] = useState(false);
   const [syncStatus, setSyncStatus] = useState<'idle' | 'syncing' | 'ok' | 'error'>('idle');
   const [syncMsg, setSyncMsg] = useState('');
   const [pushStatus, setPushStatus] = useState<'idle' | 'ok' | 'error'>('idle');
@@ -297,8 +298,49 @@ export default function SettingsScreen({ config, despesas, projetos, updateConfi
 
       <div style={S.separator} />
 
+      {/* Guia */}
+      <div style={S.section}>Como Configurar</div>
+      <button onClick={() => setShowGuia(!showGuia)} style={{ ...S.actionBtn, marginBottom: 8 }}>
+        {showGuia ? 'Fechar guia' : 'Ver guia passo a passo'}
+      </button>
+      {showGuia && (
+        <div style={S.guia}>
+          <div style={S.guiaTitle}>Instalacao no iPhone</div>
+          <div style={S.guiaStep}>1. Abra este site no <b>Safari</b></div>
+          <div style={S.guiaStep}>2. Toque no botao <b>Compartilhar</b> (quadrado com seta)</div>
+          <div style={S.guiaStep}>3. Toque em <b>"Adicionar a Tela de Inicio"</b></div>
+          <div style={S.guiaStep}>4. Confirme - o app aparece como icone na home</div>
+
+          <div style={S.guiaTitle}>Ativar Notificacoes Push</div>
+          <div style={S.guiaStep}>1. Abra o app pelo <b>icone na home screen</b> (nao pelo Safari)</div>
+          <div style={S.guiaStep}>2. Va em <b>Config → Verificar Push</b></div>
+          <div style={S.guiaStep}>3. Aceite a permissao de notificacao quando o iPhone pedir</div>
+          <div style={S.guiaStep}>4. Deve aparecer <b>verde</b> "Push subscription ativa"</div>
+          <div style={S.guiaStep}>5. Pronto! Notificacoes chegam mesmo com o app fechado</div>
+
+          <div style={S.guiaTitle}>Cadastrar Despesas</div>
+          <div style={S.guiaStep}>1. Na tela principal, toque no <b>+</b> para adicionar</div>
+          <div style={S.guiaStep}>2. Preencha descricao, valor e <b>dia de vencimento</b></div>
+          <div style={S.guiaStep}>3. Configure os lembretes:</div>
+          <div style={S.guiaStep}>&nbsp;&nbsp;- <b>1 dia util antes</b>: lembra na vespera (sexta se vence segunda)</div>
+          <div style={S.guiaStep}>&nbsp;&nbsp;- <b>No dia e posteriores</b>: repete a cada X minutos ate pagar</div>
+          <div style={S.guiaStep}>4. Toque no <b>circulo</b> ao lado da despesa para marcar como paga</div>
+          <div style={S.guiaStep}>5. Status "pago" vale so para o mes atual</div>
+
+          <div style={S.guiaTitle}>Projetos</div>
+          <div style={S.guiaStep}>1. Use os <b>botoes no topo</b> para alternar entre projetos</div>
+          <div style={S.guiaStep}>2. Toque no <b>+</b> para criar um novo projeto</div>
+          <div style={S.guiaStep}>3. Cada projeto tem suas proprias despesas</div>
+
+          <div style={S.guiaTitle}>Sincronizacao</div>
+          <div style={S.guiaStep}>1. Dados sincronizam <b>automaticamente</b> com o servidor</div>
+          <div style={S.guiaStep}>2. Use <b>"Sincronizar agora"</b> para forcar e verificar</div>
+          <div style={S.guiaStep}>3. A janela de horario controla quando as notificacoes chegam</div>
+        </div>
+      )}
+
       <div style={{ color: colors.textMuted, fontSize: 13, textAlign: 'center', marginTop: 32, lineHeight: '20px' }}>
-        MoneyMate PWA v1.0<br />Dados armazenados localmente no navegador
+        MoneyMate PWA v1.0<br />Dados sincronizados com servidor
       </div>
     </div>
   );
@@ -348,5 +390,14 @@ const S = {
   },
   separator: {
     height: 1, background: colors.border, margin: '16px 0',
+  },
+  guia: {
+    background: colors.card, borderRadius: 12, padding: 16, border: `1px solid ${colors.border}`,
+  },
+  guiaTitle: {
+    color: colors.primary, fontSize: 15, fontWeight: 700, marginTop: 16, marginBottom: 8,
+  },
+  guiaStep: {
+    color: colors.text, fontSize: 14, lineHeight: '22px', paddingLeft: 8,
   },
 };
