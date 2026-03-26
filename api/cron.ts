@@ -19,22 +19,25 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     );
 
     const now = new Date();
-    // Convert to Sao Paulo timezone
     const spTime = new Date(now.toLocaleString('en-US', { timeZone: 'America/Sao_Paulo' }));
     const horaLocal = spTime.getHours();
     const diaHoje = spTime.getDate();
     const mesHoje = spTime.getMonth() + 1;
-
-    // Janela de horario: 9h - 22h (Brasilia)
-    if (horaLocal < 9 || horaLocal >= 22) {
-      return res.status(200).json({ ok: true, sent: 0, skipped: 'outside_window', hora: horaLocal });
-    }
 
     const devices = await sql`SELECT id FROM devices`;
     let totalSent = 0;
 
     for (const device of devices) {
       const deviceId = device.id;
+
+      // Check device config for window
+      const configRows = await sql`SELECT config FROM device_config WHERE device_id = ${deviceId}`;
+      const deviceConfig = configRows.length > 0 ? configRows[0].config : {};
+      const janelaAtiva = deviceConfig.janelaAtiva !== false;
+      const janelaInicio = deviceConfig.janelaInicio ?? 9;
+      const janelaFim = deviceConfig.janelaFim ?? 22;
+
+      if (janelaAtiva && (horaLocal < janelaInicio || horaLocal >= janelaFim)) continue;
 
       const subs = await sql`SELECT endpoint, p256dh, auth FROM push_subscriptions WHERE device_id = ${deviceId}`;
       if (subs.length === 0) continue;

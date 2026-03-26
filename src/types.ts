@@ -34,9 +34,12 @@ export interface NotificacaoConfig {
   alertaLimite: boolean;
   limiteMensal: number;
   horarioPadrao: { hora: number; minuto: number };
-  diasAntes: number; // dias antes do vencimento para lembrar (default: 1)
-  intervaloNoDia: number; // minutos entre alertas no dia do vencimento (default: 180 = 3h)
-  intervaloAposVenc: number; // minutos entre alertas apos vencimento (default: 180 = 3h)
+  diasAntes: number;
+  intervaloNoDia: number;
+  intervaloAposVenc: number;
+  janelaAtiva: boolean; // toggle janela de horario (default: true)
+  janelaInicio: number; // hora inicio (default: 9)
+  janelaFim: number; // hora fim (default: 22)
 }
 
 export const CATEGORIAS = [

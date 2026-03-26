@@ -188,6 +188,45 @@ export default function SettingsScreen({ config, despesas, projetos, updateConfi
 
       <div style={S.separator} />
 
+      {/* Janela de horario */}
+      <div style={S.section}>Janela de Notificacao</div>
+      <div style={S.row}>
+        <div style={{ flex: 1 }}>
+          <div style={{ fontSize: 16, fontWeight: 600 }}>Respeitar janela de horario</div>
+          <div style={{ color: colors.textMuted, fontSize: 13, marginTop: 2 }}>
+            {config.janelaAtiva !== false
+              ? `Notificacoes so das ${config.janelaInicio ?? 9}h as ${config.janelaFim ?? 22}h`
+              : 'Notificacoes 24h (sem restricao)'}
+          </div>
+        </div>
+        <label style={{ cursor: 'pointer' }}>
+          <input type="checkbox" checked={config.janelaAtiva !== false}
+            onChange={(e) => updateConfig({ janelaAtiva: e.target.checked })} style={{ display: 'none' }} />
+          <div style={{ width: 44, height: 24, borderRadius: 12, padding: 2, transition: 'background 0.2s',
+            background: config.janelaAtiva !== false ? colors.success : colors.border }}>
+            <div style={{ width: 20, height: 20, borderRadius: 10, background: colors.white,
+              transition: 'transform 0.2s', transform: config.janelaAtiva !== false ? 'translateX(20px)' : 'translateX(0)',
+              boxShadow: '0 1px 3px rgba(0,0,0,0.3)' }} />
+          </div>
+        </label>
+      </div>
+
+      {config.janelaAtiva !== false && (
+        <div style={{ ...S.inlineRow, marginTop: 8 }}>
+          <span style={{ color: colors.textMuted, fontSize: 13 }}>Das</span>
+          <input style={{ ...S.input, width: 60, textAlign: 'center' }} type="number"
+            value={config.janelaInicio ?? 9} min="0" max="23"
+            onChange={(e) => updateConfig({ janelaInicio: parseInt(e.target.value) || 0 })} />
+          <span style={{ color: colors.textMuted, fontSize: 13 }}>h as</span>
+          <input style={{ ...S.input, width: 60, textAlign: 'center' }} type="number"
+            value={config.janelaFim ?? 22} min="0" max="23"
+            onChange={(e) => updateConfig({ janelaFim: parseInt(e.target.value) || 23 })} />
+          <span style={{ color: colors.textMuted, fontSize: 13 }}>h</span>
+        </div>
+      )}
+
+      <div style={S.separator} />
+
       {/* Horario */}
       <div style={S.section}>Configuracoes de Lembrete</div>
 

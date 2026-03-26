@@ -32,6 +32,9 @@ export const DEFAULT_CONFIG: NotificacaoConfig = {
   diasAntes: 1,
   intervaloNoDia: 180,
   intervaloAposVenc: 180,
+  janelaAtiva: true,
+  janelaInicio: 9,
+  janelaFim: 22,
 };
 
 function getMesAtual(): string {
