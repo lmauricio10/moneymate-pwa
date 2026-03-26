@@ -105,7 +105,6 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
               corpo = `${valor} - venceu dia ${dia} (${diasAtraso}d atras)`;
             }
             shouldSend = true;
-            tipo = 'no_dia';
           }
         }
 
