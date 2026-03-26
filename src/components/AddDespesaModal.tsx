@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { colors } from '../colors';
-import { CATEGORIAS, Categoria, Despesa, ModoNotificacao, NOTIFICACAO_LABELS } from '../types';
+import { CATEGORIAS, Categoria, Despesa, ModoNotificacao, NOTIFICACAO_LABELS, Recorrencia, MESES_NOMES } from '../types';
 
 const MODOS: ModoNotificacao[] = ['vespera', 'no_dia', 'ambos', 'nenhuma'];
 
@@ -8,7 +8,9 @@ type DespesaInput = {
   descricao: string;
   valor: number;
   categoria: string;
+  recorrencia: Recorrencia;
   diaVencimento?: number;
+  mesVencimento?: number;
   notificacao: ModoNotificacao;
   projetoId: string;
 };
@@ -27,7 +29,9 @@ export default function AddDespesaModal({ open, onClose, onSave, onUpdate, onDel
   const [descricao, setDescricao] = useState('');
   const [valor, setValor] = useState('');
   const [categoria, setCategoria] = useState<Categoria>('Outros');
+  const [recorrencia, setRecorrencia] = useState<Recorrencia>('mensal');
   const [diaVencimento, setDiaVencimento] = useState('');
+  const [mesVencimento, setMesVencimento] = useState(1);
   const [notificacao, setNotificacao] = useState<ModoNotificacao>('vespera');
   const [erro, setErro] = useState('');
 
@@ -38,7 +42,9 @@ export default function AddDespesaModal({ open, onClose, onSave, onUpdate, onDel
       setDescricao(editDespesa.descricao);
       setValor(editDespesa.valor.toString().replace('.', ','));
       setCategoria(editDespesa.categoria as Categoria);
+      setRecorrencia(editDespesa.recorrencia || 'mensal');
       setDiaVencimento(editDespesa.diaVencimento?.toString() || '');
+      setMesVencimento(editDespesa.mesVencimento || 1);
       setNotificacao(editDespesa.notificacao);
       setErro('');
     }
@@ -48,8 +54,9 @@ export default function AddDespesaModal({ open, onClose, onSave, onUpdate, onDel
 
   const reset = () => {
     setDescricao(''); setValor('');
-    setCategoria('Outros');
-    setDiaVencimento(''); setNotificacao('vespera'); setErro('');
+    setCategoria('Outros'); setRecorrencia('mensal');
+    setDiaVencimento(''); setMesVencimento(1);
+    setNotificacao('vespera'); setErro('');
   };
 
   const handleSave = () => {
@@ -62,7 +69,10 @@ export default function AddDespesaModal({ open, onClose, onSave, onUpdate, onDel
 
     const data: DespesaInput = {
       descricao: descricao.trim(), valor: valorNum, categoria,
-      diaVencimento: diaVenc, notificacao, projetoId,
+      recorrencia,
+      diaVencimento: diaVenc,
+      mesVencimento: recorrencia === 'anual' ? mesVencimento : undefined,
+      notificacao, projetoId,
     };
 
     if (isEdit && onUpdate) {
@@ -93,16 +103,44 @@ export default function AddDespesaModal({ open, onClose, onSave, onUpdate, onDel
         <div style={S.form}>
           <label style={S.label}>Descricao</label>
           <input style={S.input} value={descricao} onChange={(e) => setDescricao(e.target.value)}
-            placeholder="Ex: Netflix, Aluguel, Conta de luz..." />
+            placeholder="Ex: Netflix, IPTU, Seguro..." />
 
           <label style={S.label}>Valor (R$)</label>
           <input style={S.input} value={valor} onChange={(e) => setValor(e.target.value)}
             placeholder="0,00" inputMode="decimal" />
 
+          {/* Recorrencia */}
+          <label style={S.label}>Recorrencia</label>
+          <div style={S.chips}>
+            <button onClick={() => setRecorrencia('mensal')}
+              style={{ ...S.chip, ...(recorrencia === 'mensal' ? S.chipActive : {}) }}>
+              Mensal
+            </button>
+            <button onClick={() => setRecorrencia('anual')}
+              style={{ ...S.chip, ...(recorrencia === 'anual' ? S.chipActive : {}) }}>
+              Anual
+            </button>
+          </div>
+
           <label style={S.label}>Dia de vencimento (1-31)</label>
           <input style={S.input} value={diaVencimento}
             onChange={(e) => setDiaVencimento(e.target.value.replace(/\D/g, '').slice(0, 2))}
             placeholder="Ex: 10" inputMode="numeric" />
+
+          {/* Mes de vencimento - only for annual */}
+          {recorrencia === 'anual' && (
+            <>
+              <label style={S.label}>Mes de vencimento</label>
+              <div style={S.chips}>
+                {MESES_NOMES.map((nome, i) => (
+                  <button key={i} onClick={() => setMesVencimento(i + 1)}
+                    style={{ ...S.chip, minWidth: 44, ...(mesVencimento === i + 1 ? S.chipActive : {}) }}>
+                    {nome}
+                  </button>
+                ))}
+              </div>
+            </>
+          )}
 
           {/* Notificacao */}
           <div style={S.vencSection}>

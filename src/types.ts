@@ -1,5 +1,6 @@
 export type ModoNotificacao = 'vespera' | 'no_dia' | 'ambos' | 'nenhuma';
 export type StatusPagamento = 'pendente' | 'pago';
+export type Recorrencia = 'mensal' | 'anual';
 
 export interface Projeto {
   id: string;
@@ -14,17 +15,27 @@ export interface Despesa {
   valor: number;
   data: string; // YYYY-MM-DD
   categoria: string;
+  recorrencia: Recorrencia;
   diaVencimento?: number;
+  mesVencimento?: number; // 1-12, only for annual
   notificacao: ModoNotificacao;
   status: StatusPagamento;
   mesPago?: string; // YYYY-MM
   criadoEm: string;
 }
 
+export const MESES_NOMES = [
+  'Jan','Fev','Mar','Abr','Mai','Jun',
+  'Jul','Ago','Set','Out','Nov','Dez',
+] as const;
+
 export interface NotificacaoConfig {
   alertaLimite: boolean;
   limiteMensal: number;
   horarioPadrao: { hora: number; minuto: number };
+  diasAntes: number; // dias antes do vencimento para lembrar (default: 1)
+  intervaloNoDia: number; // minutos entre alertas no dia do vencimento (default: 180 = 3h)
+  intervaloAposVenc: number; // minutos entre alertas apos vencimento (default: 180 = 3h)
 }
 
 export const CATEGORIAS = [

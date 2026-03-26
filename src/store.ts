@@ -15,6 +15,9 @@ export const DEFAULT_CONFIG: NotificacaoConfig = {
   alertaLimite: false,
   limiteMensal: 3000,
   horarioPadrao: { hora: 20, minuto: 0 },
+  diasAntes: 1,
+  intervaloNoDia: 180,
+  intervaloAposVenc: 180,
 };
 
 function getMesAtual(): string {
@@ -63,11 +66,12 @@ export function loadDespesas(): Despesa[] {
     const raw = localStorage.getItem(STORAGE_KEY);
     if (!raw) return [];
     let despesas: Despesa[] = JSON.parse(raw);
-    // Migration: add status and projetoId
+    // Migration: add status, projetoId, recorrencia
     despesas = despesas.map((d) => ({
       ...d,
       status: d.status || 'pendente',
       projetoId: d.projetoId || 'pessoal',
+      recorrencia: d.recorrencia || 'mensal',
     }));
     const { atualizadas, mudou } = resetarStatusMensal(despesas);
     if (mudou) {

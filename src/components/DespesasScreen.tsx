@@ -1,6 +1,6 @@
 import { useState, useMemo } from 'react';
 import { colors } from '../colors';
-import { Despesa, NotificacaoConfig, Projeto, NOTIFICACAO_LABELS } from '../types';
+import { Despesa, NotificacaoConfig, Projeto, NOTIFICACAO_LABELS, MESES_NOMES } from '../types';
 import AddDespesaModal from './AddDespesaModal';
 
 const MESES = [
@@ -45,15 +45,18 @@ export default function DespesasScreen({
 
   const projetoNome = projetos.find((p) => p.id === projetoAtivo)?.nome || 'Pessoal';
 
-  // All recurring bills for this project show every month
+  // Filter expenses: monthly show every month, annual only in their month
   const despesasMes = useMemo(() => {
     return despesas.filter((d) => {
       if (d.projetoId !== projetoAtivo) return false;
-      // Recurring bills (have diaVencimento) show in all months
-      if (d.diaVencimento) return true;
-      // One-time expenses filter by date
-      const prefix = `${ano}-${String(mes).padStart(2, '0')}`;
-      return d.data.startsWith(prefix);
+      if (!d.diaVencimento) {
+        const prefix = `${ano}-${String(mes).padStart(2, '0')}`;
+        return d.data.startsWith(prefix);
+      }
+      // Annual: only show in the specific month
+      if (d.recorrencia === 'anual') return d.mesVencimento === mes;
+      // Monthly: show every month
+      return true;
     });
   }, [despesas, projetoAtivo, ano, mes]);
 
@@ -90,7 +93,7 @@ export default function DespesasScreen({
     setShowModal(true);
   };
 
-  const handleSave = (d: { descricao: string; valor: number; categoria: string; diaVencimento?: number; notificacao: any; projetoId: string }) => {
+  const handleSave = (d: { descricao: string; valor: number; categoria: string; recorrencia: any; diaVencimento?: number; mesVencimento?: number; notificacao: any; projetoId: string }) => {
     const data = d.diaVencimento
       ? `${ano}-${String(mes).padStart(2, '0')}-${String(d.diaVencimento).padStart(2, '0')}`
       : new Date().toISOString().split('T')[0];
@@ -213,7 +216,10 @@ export default function DespesasScreen({
                   </div>
                   <div style={{ color: colors.textMuted, fontSize: 13, marginTop: 4 }}>
                     {item.categoria}
-                    {item.diaVencimento ? ` | Venc. dia ${item.diaVencimento}` : ''}
+                    {item.diaVencimento ? ` | Dia ${item.diaVencimento}` : ''}
+                    {item.recorrencia === 'anual' && item.mesVencimento
+                      ? ` ${MESES_NOMES[item.mesVencimento - 1]} (anual)`
+                      : item.diaVencimento ? ' (mensal)' : ''}
                   </div>
                   {item.diaVencimento && item.notificacao !== 'nenhuma' && !isPago && (
                     <div style={{ color: colors.primary, fontSize: 11, marginTop: 2 }}>

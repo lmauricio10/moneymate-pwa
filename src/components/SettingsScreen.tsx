@@ -116,13 +116,39 @@ export default function SettingsScreen({ config, despesas, projetos, updateConfi
 
       {/* Horario */}
       <div style={S.section}>Configuracoes de Lembrete</div>
-      <div style={S.label}>Horario do lembrete de vespera</div>
+
+      <div style={S.label}>Dias antes do vencimento para lembrar</div>
+      <div style={S.inlineRow}>
+        <input style={{ ...S.input, flex: 1 }} type="number" value={config.diasAntes ?? 1}
+          onChange={(e) => { const v = parseInt(e.target.value); if (v >= 0 && v <= 30) updateConfig({ diasAntes: v }); }}
+          min="0" max="30" />
+        <span style={{ color: colors.textMuted, fontSize: 13 }}>dia(s)</span>
+      </div>
+
+      <div style={S.label}>Horario do lembrete antecipado</div>
       <div style={S.inlineRow}>
         <input style={{ ...S.input, flex: 1 }} type="time" value={horaInput}
           onChange={(e) => setHoraInput(e.target.value)} />
         <button style={S.smallBtn} onClick={salvarHorario}>Salvar</button>
       </div>
-      <div style={S.hint}>Despesas com "1 dia antes" serao notificadas neste horario</div>
+
+      <div style={S.label}>Intervalo de alertas no dia do vencimento</div>
+      <div style={S.inlineRow}>
+        <input style={{ ...S.input, flex: 1 }} type="number" value={config.intervaloNoDia ?? 180}
+          onChange={(e) => { const v = parseInt(e.target.value); if (v >= 5 && v <= 1440) updateConfig({ intervaloNoDia: v }); }}
+          min="5" max="1440" />
+        <span style={{ color: colors.textMuted, fontSize: 13 }}>min</span>
+      </div>
+      <div style={S.hint}>180 min = 3h | 60 min = 1h | 30 min = meia hora</div>
+
+      <div style={S.label}>Intervalo de alertas apos vencimento</div>
+      <div style={S.inlineRow}>
+        <input style={{ ...S.input, flex: 1 }} type="number" value={config.intervaloAposVenc ?? 180}
+          onChange={(e) => { const v = parseInt(e.target.value); if (v >= 5 && v <= 1440) updateConfig({ intervaloAposVenc: v }); }}
+          min="5" max="1440" />
+        <span style={{ color: colors.textMuted, fontSize: 13 }}>min</span>
+      </div>
+      <div style={S.hint}>Alertas continuam ate marcar como pago</div>
 
       <div style={S.separator} />
 

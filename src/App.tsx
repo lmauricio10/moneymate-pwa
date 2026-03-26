@@ -30,7 +30,7 @@ export default function App() {
     setProjetos(p);
     setProjetoAtivo(pa);
     setLoading(false);
-    notificarVencimentos(d);
+    notificarVencimentos(d, c);
   }, []);
 
   const addDespesa = useCallback((d: Omit<Despesa, 'id' | 'criadoEm' | 'status'>) => {
