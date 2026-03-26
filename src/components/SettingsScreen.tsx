@@ -2,7 +2,7 @@ import { useState, useRef } from 'react';
 import { colors } from '../colors';
 import { Despesa, NotificacaoConfig, Projeto } from '../types';
 import { enviarNotificacaoTeste, enviarNotificacaoDespesa, notificacoesSuportadas } from '../notifications';
-import { exportData, importData } from '../store';
+import { exportData, importData, getDeviceId, subscribeToPush } from '../store';
 
 interface Props {
   config: NotificacaoConfig;
@@ -18,6 +18,45 @@ export default function SettingsScreen({ config, despesas, projetos, updateConfi
     `${String(config.horarioPadrao.hora).padStart(2, '0')}:${String(config.horarioPadrao.minuto).padStart(2, '0')}`,
   );
   const fileRef = useRef<HTMLInputElement>(null);
+  const [syncStatus, setSyncStatus] = useState<'idle' | 'syncing' | 'ok' | 'error'>('idle');
+  const [syncMsg, setSyncMsg] = useState('');
+  const [pushStatus, setPushStatus] = useState<'idle' | 'ok' | 'error'>('idle');
+  const [pushMsg, setPushMsg] = useState('');
+
+  const handleSync = async () => {
+    setSyncStatus('syncing');
+    setSyncMsg('');
+    try {
+      const deviceId = getDeviceId();
+      const res = await fetch('/api/sync', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ deviceId, despesas, projetos, config }),
+      });
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({ error: res.statusText }));
+        throw new Error(err.error || 'Erro no servidor');
+      }
+      setSyncStatus('ok');
+      setSyncMsg(`Sincronizado: ${despesas.length} despesa(s), ${projetos.length} projeto(s)`);
+    } catch (err: any) {
+      setSyncStatus('error');
+      setSyncMsg(err.message || 'Falha na sincronizacao');
+    }
+  };
+
+  const handlePushTest = async () => {
+    setPushStatus('idle');
+    setPushMsg('');
+    const ok = await subscribeToPush();
+    if (ok) {
+      setPushStatus('ok');
+      setPushMsg('Push subscription ativa');
+    } else {
+      setPushStatus('error');
+      setPushMsg('Falha ao registrar push. Verifique permissoes do navegador.');
+    }
+  };
 
   const despesasComVencimento = despesas.filter((d) => d.diaVencimento && d.notificacao !== 'nenhuma');
 
@@ -69,6 +108,41 @@ export default function SettingsScreen({ config, despesas, projetos, updateConfi
 
   return (
     <div style={{ padding: 16, paddingBottom: 40, overflow: 'auto', height: '100%' }}>
+      {/* Sincronizacao */}
+      <div style={S.section}>Sincronizacao com Servidor</div>
+      <div style={S.rowBtns}>
+        <button onClick={handleSync} disabled={syncStatus === 'syncing'}
+          style={{ ...S.actionBtn, flex: 1, opacity: syncStatus === 'syncing' ? 0.6 : 1 }}>
+          {syncStatus === 'syncing' ? 'Sincronizando...' : 'Sincronizar agora'}
+        </button>
+        <button onClick={handlePushTest} style={{ ...S.importBtn, flex: 1 }}>
+          Verificar Push
+        </button>
+      </div>
+      {syncStatus !== 'idle' && (
+        <div style={{
+          marginTop: 8, padding: 10, borderRadius: 8, fontSize: 13,
+          background: syncStatus === 'ok' ? colors.success + '20' : syncStatus === 'error' ? colors.danger + '20' : colors.card,
+          color: syncStatus === 'ok' ? colors.success : syncStatus === 'error' ? colors.danger : colors.text,
+          border: `1px solid ${syncStatus === 'ok' ? colors.success + '40' : syncStatus === 'error' ? colors.danger + '40' : colors.border}`,
+        }}>
+          {syncStatus === 'ok' ? '✓ ' : syncStatus === 'error' ? '✕ ' : ''}{syncMsg}
+        </div>
+      )}
+      {pushStatus !== 'idle' && (
+        <div style={{
+          marginTop: 6, padding: 10, borderRadius: 8, fontSize: 13,
+          background: pushStatus === 'ok' ? colors.success + '20' : colors.danger + '20',
+          color: pushStatus === 'ok' ? colors.success : colors.danger,
+          border: `1px solid ${pushStatus === 'ok' ? colors.success + '40' : colors.danger + '40'}`,
+        }}>
+          {pushStatus === 'ok' ? '✓ ' : '✕ '}{pushMsg}
+        </div>
+      )}
+      <div style={S.hint}>Device ID: {getDeviceId().slice(0, 20)}...</div>
+
+      <div style={S.separator} />
+
       {/* Backup */}
       <div style={S.section}>Backup dos Dados</div>
       <div style={S.rowBtns}>
