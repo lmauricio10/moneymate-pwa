@@ -4,6 +4,7 @@ import { Despesa, NotificacaoConfig, Projeto } from './types';
 import {
   loadDespesas, saveDespesas, loadConfig, saveConfig,
   loadProjetos, saveProjetos, loadProjetoAtivo, saveProjetoAtivo,
+  syncToServer, subscribeToPush,
   DEFAULT_CONFIG,
 } from './store';
 import { notificarVencimentos } from './notifications';
@@ -31,7 +32,20 @@ export default function App() {
     setProjetoAtivo(pa);
     setLoading(false);
     notificarVencimentos(d, c);
+    // Sync to server and subscribe to push on load
+    syncToServer(d, c, p);
+    subscribeToPush();
   }, []);
+
+  // Helper: save and sync
+  const saveAndSync = useCallback((nextDespesas: Despesa[], nextConfig?: NotificacaoConfig, nextProjetos?: Projeto[]) => {
+    saveDespesas(nextDespesas);
+    const c = nextConfig ?? config;
+    const p = nextProjetos ?? projetos;
+    if (nextConfig) saveConfig(c);
+    if (nextProjetos) saveProjetos(p);
+    syncToServer(nextDespesas, c, p);
+  }, [config, projetos]);
 
   const addDespesa = useCallback((d: Omit<Despesa, 'id' | 'criadoEm' | 'status'>) => {
     const nova: Despesa = {
@@ -43,26 +57,26 @@ export default function App() {
     };
     setDespesas((prev) => {
       const next = [nova, ...prev];
-      saveDespesas(next);
+      saveAndSync(next);
       return next;
     });
-  }, []);
+  }, [saveAndSync]);
 
   const updateDespesa = useCallback((id: string, changes: Partial<Omit<Despesa, 'id' | 'criadoEm'>>) => {
     setDespesas((prev) => {
       const next = prev.map((d) => d.id === id ? { ...d, ...changes } : d);
-      saveDespesas(next);
+      saveAndSync(next);
       return next;
     });
-  }, []);
+  }, [saveAndSync]);
 
   const removeDespesa = useCallback((id: string) => {
     setDespesas((prev) => {
       const next = prev.filter((d) => d.id !== id);
-      saveDespesas(next);
+      saveAndSync(next);
       return next;
     });
-  }, []);
+  }, [saveAndSync]);
 
   const togglePago = useCallback((id: string) => {
     const mesAtual = (() => {
@@ -75,18 +89,19 @@ export default function App() {
         const novoStatus = d.status === 'pago' ? 'pendente' : 'pago';
         return { ...d, status: novoStatus as 'pago' | 'pendente', mesPago: novoStatus === 'pago' ? mesAtual : undefined };
       });
-      saveDespesas(next);
+      saveAndSync(next);
       return next;
     });
-  }, []);
+  }, [saveAndSync]);
 
   const updateConfig = useCallback((partial: Partial<NotificacaoConfig>) => {
     setConfig((prev) => {
       const next = { ...prev, ...partial };
       saveConfig(next);
+      syncToServer(despesas, next, projetos);
       return next;
     });
-  }, []);
+  }, [despesas, projetos]);
 
   const addProjeto = useCallback((nome: string) => {
     const novo: Projeto = {
@@ -97,20 +112,22 @@ export default function App() {
     setProjetos((prev) => {
       const next = [...prev, novo];
       saveProjetos(next);
+      syncToServer(despesas, config, next);
       return next;
     });
     setProjetoAtivo(novo.id);
     saveProjetoAtivo(novo.id);
     return novo;
-  }, []);
+  }, [despesas, config]);
 
   const renameProjeto = useCallback((id: string, nome: string) => {
     setProjetos((prev) => {
       const next = prev.map((p) => p.id === id ? { ...p, nome } : p);
       saveProjetos(next);
+      syncToServer(despesas, config, next);
       return next;
     });
-  }, []);
+  }, [despesas, config]);
 
   const removeProjeto = useCallback((id: string) => {
     setProjetos((prev) => {
@@ -120,15 +137,16 @@ export default function App() {
         setProjetoAtivo(next[0].id);
         saveProjetoAtivo(next[0].id);
       }
+      // Remove despesas do projeto
+      setDespesas((prevD) => {
+        const nextD = prevD.filter((d) => d.projetoId !== id);
+        saveDespesas(nextD);
+        syncToServer(nextD, config, next);
+        return nextD;
+      });
       return next;
     });
-    // Remove despesas do projeto
-    setDespesas((prev) => {
-      const next = prev.filter((d) => d.projetoId !== id);
-      saveDespesas(next);
-      return next;
-    });
-  }, [projetoAtivo]);
+  }, [projetoAtivo, config]);
 
   const selectProjeto = useCallback((id: string) => {
     setProjetoAtivo(id);
