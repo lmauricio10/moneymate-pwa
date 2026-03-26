@@ -1,8 +1,6 @@
 import { useState, useEffect } from 'react';
 import { colors } from '../colors';
-import { CATEGORIAS, Categoria, Despesa, ModoNotificacao, NOTIFICACAO_LABELS, Recorrencia, MESES_NOMES } from '../types';
-
-const MODOS: ModoNotificacao[] = ['vespera', 'no_dia', 'ambos', 'nenhuma'];
+import { CATEGORIAS, Categoria, Despesa, ModoNotificacao, Recorrencia, MESES_NOMES } from '../types';
 
 type DespesaInput = {
   descricao: string;
@@ -33,11 +31,20 @@ export default function AddDespesaModal({ open, onClose, onSave, onUpdate, onDel
   const [recorrencia, setRecorrencia] = useState<Recorrencia>('mensal');
   const [diaVencimento, setDiaVencimento] = useState('');
   const [mesVencimento, setMesVencimento] = useState(1);
-  const [notificacao, setNotificacao] = useState<ModoNotificacao>('ambos');
+  const [lembreteVespera, setLembreteVespera] = useState(true);
+  const [lembreteNoDia, setLembreteNoDia] = useState(true);
   const [intervaloHoras, setIntervaloHoras] = useState('3');
   const [erro, setErro] = useState('');
 
   const isEdit = !!editDespesa;
+
+  // Derive ModoNotificacao from the 2 toggles
+  const getNotificacao = (): ModoNotificacao => {
+    if (lembreteVespera && lembreteNoDia) return 'ambos';
+    if (lembreteVespera) return 'vespera';
+    if (lembreteNoDia) return 'no_dia';
+    return 'nenhuma';
+  };
 
   useEffect(() => {
     if (editDespesa) {
@@ -47,7 +54,8 @@ export default function AddDespesaModal({ open, onClose, onSave, onUpdate, onDel
       setRecorrencia(editDespesa.recorrencia || 'mensal');
       setDiaVencimento(editDespesa.diaVencimento?.toString() || '');
       setMesVencimento(editDespesa.mesVencimento || 1);
-      setNotificacao(editDespesa.notificacao);
+      setLembreteVespera(editDespesa.notificacao === 'vespera' || editDespesa.notificacao === 'ambos');
+      setLembreteNoDia(editDespesa.notificacao === 'no_dia' || editDespesa.notificacao === 'ambos');
       setIntervaloHoras((editDespesa.intervaloHoras ?? 3).toString());
       setErro('');
     }
@@ -59,7 +67,8 @@ export default function AddDespesaModal({ open, onClose, onSave, onUpdate, onDel
     setDescricao(''); setValor('');
     setCategoria('Outros'); setRecorrencia('mensal');
     setDiaVencimento(''); setMesVencimento(1);
-    setNotificacao('ambos'); setIntervaloHoras('3'); setErro('');
+    setLembreteVespera(true); setLembreteNoDia(true);
+    setIntervaloHoras('3'); setErro('');
   };
 
   const handleSave = () => {
@@ -78,7 +87,7 @@ export default function AddDespesaModal({ open, onClose, onSave, onUpdate, onDel
       recorrencia,
       diaVencimento: diaVenc,
       mesVencimento: recorrencia === 'anual' ? mesVencimento : undefined,
-      notificacao, intervaloHoras: intervalo, projetoId,
+      notificacao: getNotificacao(), intervaloHoras: intervalo, projetoId,
     };
 
     if (isEdit && onUpdate) {
@@ -148,30 +157,41 @@ export default function AddDespesaModal({ open, onClose, onSave, onUpdate, onDel
             </>
           )}
 
-          {/* Notificacao */}
+          {/* Schedule 1: Vespera */}
           <div style={S.vencSection}>
-            <div style={{ fontSize: 15, fontWeight: 600, marginBottom: 8 }}>Lembrete</div>
-            <div style={S.chips}>
-              {MODOS.map((m) => (
-                <button key={m} onClick={() => setNotificacao(m)}
-                  style={{ ...S.chip, ...(notificacao === m ? S.chipActiveNotif : {}) }}>
-                  {NOTIFICACAO_LABELS[m]}
-                </button>
-              ))}
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <div>
+                <div style={{ fontSize: 15, fontWeight: 600 }}>Lembrete 1 dia util antes</div>
+                <div style={{ fontSize: 12, color: colors.textMuted, marginTop: 2 }}>Sexta se vence segunda, ultimo dia util antes</div>
+              </div>
+              <button onClick={() => setLembreteVespera(!lembreteVespera)}
+                style={{ ...S.toggle, background: lembreteVespera ? colors.success : colors.border }}>
+                <div style={{ ...S.toggleThumb, transform: lembreteVespera ? 'translateX(20px)' : 'translateX(0)' }} />
+              </button>
+            </div>
+          </div>
+
+          {/* Schedule 2: No dia + posteriores */}
+          <div style={{ ...S.vencSection, marginTop: 10 }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <div>
+                <div style={{ fontSize: 15, fontWeight: 600 }}>Lembrete no dia e posteriores</div>
+                <div style={{ fontSize: 12, color: colors.textMuted, marginTop: 2 }}>Repete ate marcar como pago</div>
+              </div>
+              <button onClick={() => setLembreteNoDia(!lembreteNoDia)}
+                style={{ ...S.toggle, background: lembreteNoDia ? colors.success : colors.border }}>
+                <div style={{ ...S.toggleThumb, transform: lembreteNoDia ? 'translateX(20px)' : 'translateX(0)' }} />
+              </button>
             </div>
 
-            {notificacao !== 'nenhuma' && notificacao !== 'vespera' && (
-              <div style={{ marginTop: 12 }}>
-                <div style={{ fontSize: 13, color: colors.textSecondary, marginBottom: 6 }}>
-                  Intervalo entre alertas (horas)
-                </div>
-                <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
-                  <input style={{ ...S.input, width: 80, textAlign: 'center' as const }}
-                    value={intervaloHoras}
-                    onChange={(e) => setIntervaloHoras(e.target.value.replace(/[^\d.,]/g, ''))}
-                    inputMode="decimal" placeholder="3" />
-                  <span style={{ color: colors.textMuted, fontSize: 13 }}>hora(s) no dia e apos vencimento</span>
-                </div>
+            {lembreteNoDia && (
+              <div style={{ marginTop: 12, display: 'flex', gap: 8, alignItems: 'center' }}>
+                <span style={{ color: colors.textSecondary, fontSize: 13 }}>A cada</span>
+                <input style={{ ...S.input, width: 70, textAlign: 'center' as const, padding: 10 }}
+                  value={intervaloHoras}
+                  onChange={(e) => setIntervaloHoras(e.target.value.replace(/[^\d.,]/g, ''))}
+                  inputMode="decimal" placeholder="3" />
+                <span style={{ color: colors.textSecondary, fontSize: 13 }}>hora(s)</span>
               </div>
             )}
           </div>
@@ -245,6 +265,14 @@ const S = {
   },
   chipActiveNotif: {
     background: '#1B5E20', borderColor: colors.success, color: colors.white, fontWeight: 600,
+  },
+  toggle: {
+    width: 44, height: 24, borderRadius: 12, padding: 2, border: 'none',
+    cursor: 'pointer', transition: 'background 0.2s', flexShrink: 0,
+  },
+  toggleThumb: {
+    width: 20, height: 20, borderRadius: 10, background: colors.white,
+    transition: 'transform 0.2s', boxShadow: '0 1px 3px rgba(0,0,0,0.3)',
   },
   erro: {
     color: colors.danger, fontSize: 14, marginTop: 12, textAlign: 'center' as const,

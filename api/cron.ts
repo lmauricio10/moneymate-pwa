@@ -56,20 +56,26 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         let titulo = '';
         let corpo = '';
         let shouldSend = false;
-        let tipo: 'vespera' | 'no_dia' = 'no_dia';
 
-        // 1 day before (vespera)
-        const diaVespera = dia === 1 ? 28 : dia - 1;
+        // 1 business day before (vespera) - Friday if due Monday
         const isVespera = d.notificacao === 'vespera' || d.notificacao === 'ambos';
+        if (isVespera) {
+          // Find the last business day before the due date
+          const dueDate = new Date(now.getFullYear(), now.getMonth(), dia);
+          const lastBizDay = new Date(dueDate);
+          lastBizDay.setDate(lastBizDay.getDate() - 1);
+          // Skip weekends: if Sunday go to Friday, if Saturday go to Friday
+          while (lastBizDay.getDay() === 0 || lastBizDay.getDay() === 6) {
+            lastBizDay.setDate(lastBizDay.getDate() - 1);
+          }
 
-        if (isVespera && diaHoje === diaVespera) {
-          // Vespera: send once per day (check if already sent today)
-          const hojeMeia = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-          if (!lastNotified || lastNotified < hojeMeia) {
-            titulo = `Amanha vence: ${d.descricao}`;
-            corpo = `Vencimento dia ${dia} - ${valor}`;
-            shouldSend = true;
-            tipo = 'vespera';
+          if (diaHoje === lastBizDay.getDate() && now.getMonth() === lastBizDay.getMonth()) {
+            const hojeMeia = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+            if (!lastNotified || lastNotified < hojeMeia) {
+              titulo = `Amanha vence: ${d.descricao}`;
+              corpo = `Vencimento dia ${dia} - ${valor}`;
+              shouldSend = true;
+            }
           }
         }
 
