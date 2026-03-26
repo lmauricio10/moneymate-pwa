@@ -10,7 +10,7 @@ type DespesaInput = {
   diaVencimento?: number;
   mesVencimento?: number;
   notificacao: ModoNotificacao;
-  intervaloHoras: number;
+  intervaloMinutos: number;
   projetoId: string;
 };
 
@@ -33,7 +33,7 @@ export default function AddDespesaModal({ open, onClose, onSave, onUpdate, onDel
   const [mesVencimento, setMesVencimento] = useState(1);
   const [lembreteVespera, setLembreteVespera] = useState(true);
   const [lembreteNoDia, setLembreteNoDia] = useState(true);
-  const [intervaloHoras, setIntervaloHoras] = useState('3');
+  const [intervaloMin, setIntervaloMin] = useState('180');
   const [erro, setErro] = useState('');
 
   const isEdit = !!editDespesa;
@@ -56,7 +56,7 @@ export default function AddDespesaModal({ open, onClose, onSave, onUpdate, onDel
       setMesVencimento(editDespesa.mesVencimento || 1);
       setLembreteVespera(editDespesa.notificacao === 'vespera' || editDespesa.notificacao === 'ambos');
       setLembreteNoDia(editDespesa.notificacao === 'no_dia' || editDespesa.notificacao === 'ambos');
-      setIntervaloHoras((editDespesa.intervaloHoras ?? 3).toString());
+      setIntervaloMin((editDespesa.intervaloMinutos ?? 180).toString());
       setErro('');
     }
   }, [editDespesa]);
@@ -68,7 +68,7 @@ export default function AddDespesaModal({ open, onClose, onSave, onUpdate, onDel
     setCategoria('Outros'); setRecorrencia('mensal');
     setDiaVencimento(''); setMesVencimento(1);
     setLembreteVespera(true); setLembreteNoDia(true);
-    setIntervaloHoras('3'); setErro('');
+    setIntervaloMin('180'); setErro('');
   };
 
   const handleSave = () => {
@@ -79,15 +79,15 @@ export default function AddDespesaModal({ open, onClose, onSave, onUpdate, onDel
     const diaVenc = parseInt(diaVencimento, 10);
     if (isNaN(diaVenc) || diaVenc < 1 || diaVenc > 31) return setErro('Dia invalido (1-31)');
 
-    const horas = parseFloat(intervaloHoras.replace(',', '.'));
-    const intervalo = isNaN(horas) || horas < 1 ? 3 : horas;
+    const mins = parseInt(intervaloMin, 10);
+    const intervalo = isNaN(mins) || mins < 1 ? 180 : mins;
 
     const data: DespesaInput = {
       descricao: descricao.trim(), valor: valorNum, categoria,
       recorrencia,
       diaVencimento: diaVenc,
       mesVencimento: recorrencia === 'anual' ? mesVencimento : undefined,
-      notificacao: getNotificacao(), intervaloHoras: intervalo, projetoId,
+      notificacao: getNotificacao(), intervaloMinutos: intervalo, projetoId,
     };
 
     if (isEdit && onUpdate) {
@@ -188,10 +188,15 @@ export default function AddDespesaModal({ open, onClose, onSave, onUpdate, onDel
               <div style={{ marginTop: 12, display: 'flex', gap: 8, alignItems: 'center' }}>
                 <span style={{ color: colors.textSecondary, fontSize: 13 }}>A cada</span>
                 <input style={{ ...S.input, width: 70, textAlign: 'center' as const, padding: 10 }}
-                  value={intervaloHoras}
-                  onChange={(e) => setIntervaloHoras(e.target.value.replace(/[^\d.,]/g, ''))}
-                  inputMode="decimal" placeholder="3" />
-                <span style={{ color: colors.textSecondary, fontSize: 13 }}>hora(s)</span>
+                  value={intervaloMin}
+                  onChange={(e) => setIntervaloMin(e.target.value.replace(/\D/g, ''))}
+                  inputMode="numeric" placeholder="180" />
+                <span style={{ color: colors.textSecondary, fontSize: 13 }}>min</span>
+              </div>
+            )}
+            {lembreteNoDia && (
+              <div style={{ color: colors.textMuted, fontSize: 11, marginTop: 4 }}>
+                180 = 3h | 60 = 1h | 10 = teste | Janela: 9h-22h
               </div>
             )}
           </div>

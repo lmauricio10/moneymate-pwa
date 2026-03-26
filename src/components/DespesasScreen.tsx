@@ -100,7 +100,7 @@ export default function DespesasScreen({
     setShowModal(true);
   };
 
-  const handleSave = (d: { descricao: string; valor: number; categoria: string; recorrencia: any; diaVencimento?: number; mesVencimento?: number; notificacao: any; intervaloHoras: number; projetoId: string }) => {
+  const handleSave = (d: { descricao: string; valor: number; categoria: string; recorrencia: any; diaVencimento?: number; mesVencimento?: number; notificacao: any; intervaloMinutos: number; projetoId: string }) => {
     const data = d.diaVencimento
       ? `${ano}-${String(mes).padStart(2, '0')}-${String(d.diaVencimento).padStart(2, '0')}`
       : new Date().toISOString().split('T')[0];
@@ -230,7 +230,7 @@ export default function DespesasScreen({
                   </div>
                   {item.diaVencimento && item.notificacao !== 'nenhuma' && !isPago && (
                     <div style={{ color: colors.primary, fontSize: 11, marginTop: 2 }}>
-                      {NOTIFICACAO_LABELS[item.notificacao]} | a cada {item.intervaloHoras}h
+                      {NOTIFICACAO_LABELS[item.notificacao]} | a cada {item.intervaloMinutos}min
                     </div>
                   )}
                   {isPago && <div style={{ color: colors.success, fontSize: 11, fontWeight: 700, marginTop: 2 }}>Pago</div>}

@@ -36,7 +36,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
       for (const d of despesas) {
         await sql`INSERT INTO despesas (id, device_id, projeto_id, descricao, valor, data, categoria, recorrencia, dia_vencimento, mes_vencimento, notificacao, intervalo_horas, status, mes_pago, criado_em)
-          VALUES (${d.id}, ${deviceId}, ${d.projetoId}, ${d.descricao}, ${d.valor}, ${d.data}, ${d.categoria}, ${d.recorrencia || 'mensal'}, ${d.diaVencimento || null}, ${d.mesVencimento || null}, ${d.notificacao}, ${d.intervaloHoras ?? 3}, ${d.status || 'pendente'}, ${d.mesPago || null}, ${d.criadoEm})
+          VALUES (${d.id}, ${deviceId}, ${d.projetoId}, ${d.descricao}, ${d.valor}, ${d.data}, ${d.categoria}, ${d.recorrencia || 'mensal'}, ${d.diaVencimento || null}, ${d.mesVencimento || null}, ${d.notificacao}, ${d.intervaloMinutos ?? 180}, ${d.status || 'pendente'}, ${d.mesPago || null}, ${d.criadoEm})
           ON CONFLICT (id) DO UPDATE SET
             descricao = ${d.descricao},
             valor = ${d.valor},
@@ -46,7 +46,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
             dia_vencimento = ${d.diaVencimento || null},
             mes_vencimento = ${d.mesVencimento || null},
             notificacao = ${d.notificacao},
-            intervalo_horas = ${d.intervaloHoras ?? 3},
+            intervalo_horas = ${d.intervaloMinutos ?? 180},
             status = ${d.status || 'pendente'},
             mes_pago = ${d.mesPago || null}`;
       }

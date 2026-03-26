@@ -19,8 +19,16 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     );
 
     const now = new Date();
-    const diaHoje = now.getDate();
-    const mesHoje = now.getMonth() + 1;
+    // Convert to Sao Paulo timezone
+    const spTime = new Date(now.toLocaleString('en-US', { timeZone: 'America/Sao_Paulo' }));
+    const horaLocal = spTime.getHours();
+    const diaHoje = spTime.getDate();
+    const mesHoje = spTime.getMonth() + 1;
+
+    // Janela de horario: 9h - 22h (Brasilia)
+    if (horaLocal < 9 || horaLocal >= 22) {
+      return res.status(200).json({ ok: true, sent: 0, skipped: 'outside_window', hora: horaLocal });
+    }
 
     const devices = await sql`SELECT id FROM devices`;
     let totalSent = 0;
@@ -46,7 +54,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         const dia = d.dia_vencimento;
         const mesVenc = d.mes_vencimento;
         const recorrencia = d.recorrencia || 'mensal';
-        const intervaloHoras = Number(d.intervalo_horas) || 3;
+        const intervaloMinutos = Number(d.intervalo_horas) || 180; // column still named intervalo_horas but stores minutes now
         const valor = `R$ ${Number(d.valor).toFixed(2).replace('.', ',')}`;
         const lastNotified = d.last_notified ? new Date(d.last_notified) : null;
 
@@ -83,7 +91,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         const isNoDia = d.notificacao === 'no_dia' || d.notificacao === 'ambos';
         if (isNoDia && diaHoje >= dia) {
           // Check if enough time passed since last notification
-          const intervaloMs = intervaloHoras * 60 * 60 * 1000;
+          const intervaloMs = intervaloMinutos * 60 * 1000;
           if (!lastNotified || (now.getTime() - lastNotified.getTime()) >= intervaloMs) {
             if (diaHoje === dia) {
               titulo = `Hoje vence: ${d.descricao}`;

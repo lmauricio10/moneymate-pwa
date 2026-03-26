@@ -19,7 +19,7 @@ export interface Despesa {
   diaVencimento?: number;
   mesVencimento?: number; // 1-12, only for annual
   notificacao: ModoNotificacao;
-  intervaloHoras: number; // horas entre alertas no dia/apos vencimento (default: 3)
+  intervaloMinutos: number; // minutos entre alertas no dia/apos vencimento (default: 180 = 3h)
   status: StatusPagamento;
   mesPago?: string; // YYYY-MM
   criadoEm: string;
