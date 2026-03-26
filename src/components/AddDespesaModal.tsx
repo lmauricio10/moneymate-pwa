@@ -168,13 +168,13 @@ export default function AddDespesaModal({ open, onClose, onSave, onUpdate, onDel
           {erro && <div style={S.erro}>{erro}</div>}
         </div>
 
-        <div style={{ padding: '0 20px 32px', display: 'flex', gap: 10 }}>
-          {isEdit && (
-            <button style={S.deleteBtn} onClick={handleDelete}>Remover</button>
-          )}
-          <button style={{ ...S.saveBtn, flex: 1 }} onClick={handleSave}>
+        <div style={{ padding: '0 20px 32px', display: 'flex', flexDirection: 'column' as const, gap: 12 }}>
+          <button style={S.saveBtn} onClick={handleSave}>
             {isEdit ? 'Salvar alteracoes' : 'Salvar'}
           </button>
+          {isEdit && (
+            <button style={S.deleteBtn} onClick={handleDelete}>Remover despesa</button>
+          )}
         </div>
       </div>
     </div>
@@ -229,11 +229,13 @@ const S = {
     color: colors.danger, fontSize: 14, marginTop: 12, textAlign: 'center' as const,
   },
   saveBtn: {
-    background: colors.primary, color: colors.white, border: 'none', padding: 16,
-    borderRadius: 14, fontSize: 17, fontWeight: 700, cursor: 'pointer',
+    background: colors.primary, color: colors.white, border: 'none',
+    padding: 18, borderRadius: 14, fontSize: 17, fontWeight: 700, cursor: 'pointer',
+    width: '100%', minHeight: 54,
   },
   deleteBtn: {
     background: 'transparent', color: colors.danger, border: `1px solid ${colors.danger}`,
-    padding: 16, borderRadius: 14, fontSize: 15, fontWeight: 600, cursor: 'pointer',
+    padding: 18, borderRadius: 14, fontSize: 16, fontWeight: 600, cursor: 'pointer',
+    width: '100%', minHeight: 54,
   },
 };
