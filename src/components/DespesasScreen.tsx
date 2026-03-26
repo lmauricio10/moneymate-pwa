@@ -100,7 +100,7 @@ export default function DespesasScreen({
     setShowModal(true);
   };
 
-  const handleSave = (d: { descricao: string; valor: number; categoria: string; recorrencia: any; diaVencimento?: number; mesVencimento?: number; notificacao: any; projetoId: string }) => {
+  const handleSave = (d: { descricao: string; valor: number; categoria: string; recorrencia: any; diaVencimento?: number; mesVencimento?: number; notificacao: any; intervaloHoras: number; projetoId: string }) => {
     const data = d.diaVencimento
       ? `${ano}-${String(mes).padStart(2, '0')}-${String(d.diaVencimento).padStart(2, '0')}`
       : new Date().toISOString().split('T')[0];

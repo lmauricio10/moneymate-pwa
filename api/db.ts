@@ -43,8 +43,10 @@ export async function initDb() {
     dia_vencimento INTEGER,
     mes_vencimento INTEGER,
     notificacao TEXT DEFAULT 'nenhuma',
+    intervalo_horas NUMERIC DEFAULT 3,
     status TEXT DEFAULT 'pendente',
     mes_pago TEXT,
+    last_notified TIMESTAMP,
     criado_em TEXT NOT NULL
   )`;
 
@@ -52,6 +54,10 @@ export async function initDb() {
     device_id TEXT PRIMARY KEY REFERENCES devices(id) ON DELETE CASCADE,
     config JSONB NOT NULL DEFAULT '{}'
   )`;
+
+  // Migration: add columns if missing
+  await sql`ALTER TABLE despesas ADD COLUMN IF NOT EXISTS intervalo_horas NUMERIC DEFAULT 3`;
+  await sql`ALTER TABLE despesas ADD COLUMN IF NOT EXISTS last_notified TIMESTAMP`;
 }
 
 export { getDb };

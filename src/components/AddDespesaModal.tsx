@@ -12,6 +12,7 @@ type DespesaInput = {
   diaVencimento?: number;
   mesVencimento?: number;
   notificacao: ModoNotificacao;
+  intervaloHoras: number;
   projetoId: string;
 };
 
@@ -32,7 +33,8 @@ export default function AddDespesaModal({ open, onClose, onSave, onUpdate, onDel
   const [recorrencia, setRecorrencia] = useState<Recorrencia>('mensal');
   const [diaVencimento, setDiaVencimento] = useState('');
   const [mesVencimento, setMesVencimento] = useState(1);
-  const [notificacao, setNotificacao] = useState<ModoNotificacao>('vespera');
+  const [notificacao, setNotificacao] = useState<ModoNotificacao>('ambos');
+  const [intervaloHoras, setIntervaloHoras] = useState('3');
   const [erro, setErro] = useState('');
 
   const isEdit = !!editDespesa;
@@ -46,6 +48,7 @@ export default function AddDespesaModal({ open, onClose, onSave, onUpdate, onDel
       setDiaVencimento(editDespesa.diaVencimento?.toString() || '');
       setMesVencimento(editDespesa.mesVencimento || 1);
       setNotificacao(editDespesa.notificacao);
+      setIntervaloHoras((editDespesa.intervaloHoras ?? 3).toString());
       setErro('');
     }
   }, [editDespesa]);
@@ -56,7 +59,7 @@ export default function AddDespesaModal({ open, onClose, onSave, onUpdate, onDel
     setDescricao(''); setValor('');
     setCategoria('Outros'); setRecorrencia('mensal');
     setDiaVencimento(''); setMesVencimento(1);
-    setNotificacao('vespera'); setErro('');
+    setNotificacao('ambos'); setIntervaloHoras('3'); setErro('');
   };
 
   const handleSave = () => {
@@ -67,12 +70,15 @@ export default function AddDespesaModal({ open, onClose, onSave, onUpdate, onDel
     const diaVenc = parseInt(diaVencimento, 10);
     if (isNaN(diaVenc) || diaVenc < 1 || diaVenc > 31) return setErro('Dia invalido (1-31)');
 
+    const horas = parseFloat(intervaloHoras.replace(',', '.'));
+    const intervalo = isNaN(horas) || horas < 1 ? 3 : horas;
+
     const data: DespesaInput = {
       descricao: descricao.trim(), valor: valorNum, categoria,
       recorrencia,
       diaVencimento: diaVenc,
       mesVencimento: recorrencia === 'anual' ? mesVencimento : undefined,
-      notificacao, projetoId,
+      notificacao, intervaloHoras: intervalo, projetoId,
     };
 
     if (isEdit && onUpdate) {
@@ -144,7 +150,7 @@ export default function AddDespesaModal({ open, onClose, onSave, onUpdate, onDel
 
           {/* Notificacao */}
           <div style={S.vencSection}>
-            <div style={{ fontSize: 15, fontWeight: 600, marginBottom: 8 }}>Tipo de lembrete</div>
+            <div style={{ fontSize: 15, fontWeight: 600, marginBottom: 8 }}>Lembrete</div>
             <div style={S.chips}>
               {MODOS.map((m) => (
                 <button key={m} onClick={() => setNotificacao(m)}
@@ -153,6 +159,21 @@ export default function AddDespesaModal({ open, onClose, onSave, onUpdate, onDel
                 </button>
               ))}
             </div>
+
+            {notificacao !== 'nenhuma' && notificacao !== 'vespera' && (
+              <div style={{ marginTop: 12 }}>
+                <div style={{ fontSize: 13, color: colors.textSecondary, marginBottom: 6 }}>
+                  Intervalo entre alertas (horas)
+                </div>
+                <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+                  <input style={{ ...S.input, width: 80, textAlign: 'center' as const }}
+                    value={intervaloHoras}
+                    onChange={(e) => setIntervaloHoras(e.target.value.replace(/[^\d.,]/g, ''))}
+                    inputMode="decimal" placeholder="3" />
+                  <span style={{ color: colors.textMuted, fontSize: 13 }}>hora(s) no dia e apos vencimento</span>
+                </div>
+              </div>
+            )}
           </div>
 
           <label style={S.label}>Categoria</label>

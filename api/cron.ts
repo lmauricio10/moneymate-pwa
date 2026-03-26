@@ -3,7 +3,6 @@ import webpush from 'web-push';
 import { getDb, initDb } from './db.js';
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
-  // Verify cron secret (Vercel sends this header)
   const authHeader = req.headers.authorization;
   if (authHeader !== `Bearer ${process.env.CRON_SECRET}`) {
     return res.status(401).json({ error: 'Unauthorized' });
@@ -13,35 +12,29 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     const sql = getDb();
     await initDb();
 
-    const vapidPublic = process.env.VAPID_PUBLIC_KEY!;
-    const vapidPrivate = process.env.VAPID_PRIVATE_KEY!;
+    webpush.setVapidDetails(
+      'mailto:moneymate@example.com',
+      process.env.VAPID_PUBLIC_KEY!,
+      process.env.VAPID_PRIVATE_KEY!,
+    );
 
-    webpush.setVapidDetails('mailto:moneymate@example.com', vapidPublic, vapidPrivate);
+    const now = new Date();
+    const diaHoje = now.getDate();
+    const mesHoje = now.getMonth() + 1;
 
-    const hoje = new Date();
-    const diaHoje = hoje.getDate();
-    const mesHoje = hoje.getMonth() + 1;
-
-    // Get all devices with their despesas, config, and subscriptions
     const devices = await sql`SELECT id FROM devices`;
-
     let totalSent = 0;
 
     for (const device of devices) {
       const deviceId = device.id;
 
-      // Get config
-      const configRows = await sql`SELECT config FROM device_config WHERE device_id = ${deviceId}`;
-      const config = configRows.length > 0 ? configRows[0].config : {};
-      const diasAntes = config.diasAntes ?? 1;
-
-      // Get push subscriptions
       const subs = await sql`SELECT endpoint, p256dh, auth FROM push_subscriptions WHERE device_id = ${deviceId}`;
       if (subs.length === 0) continue;
 
-      // Get pending despesas with vencimento
+      // Get pending despesas with vencimento and notifications enabled
       const despesas = await sql`
-        SELECT descricao, valor, dia_vencimento, mes_vencimento, recorrencia, notificacao
+        SELECT id, descricao, valor, dia_vencimento, mes_vencimento, recorrencia,
+               notificacao, intervalo_horas, last_notified
         FROM despesas
         WHERE device_id = ${deviceId}
           AND status = 'pendente'
@@ -53,7 +46,9 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         const dia = d.dia_vencimento;
         const mesVenc = d.mes_vencimento;
         const recorrencia = d.recorrencia || 'mensal';
+        const intervaloHoras = Number(d.intervalo_horas) || 3;
         const valor = `R$ ${Number(d.valor).toFixed(2).replace('.', ',')}`;
+        const lastNotified = d.last_notified ? new Date(d.last_notified) : null;
 
         // Annual: skip if not the right month
         if (recorrencia === 'anual' && mesVenc && mesVenc !== mesHoje) continue;
@@ -61,46 +56,51 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         let titulo = '';
         let corpo = '';
         let shouldSend = false;
+        let tipo: 'vespera' | 'no_dia' = 'no_dia';
 
-        // Check vespera (day before)
+        // 1 day before (vespera)
         const diaVespera = dia === 1 ? 28 : dia - 1;
-        const isVespera = (d.notificacao === 'vespera' || d.notificacao === 'ambos');
+        const isVespera = d.notificacao === 'vespera' || d.notificacao === 'ambos';
 
-        // For configurable diasAntes
-        const diasDiff = dia - diaHoje;
-        const isAntecipado = diasDiff > 0 && diasDiff <= diasAntes;
-
-        if (isVespera && (diaHoje === diaVespera || isAntecipado)) {
-          titulo = `Amanha vence: ${d.descricao}`;
-          corpo = `Vencimento dia ${dia} - ${valor}`;
-          shouldSend = true;
+        if (isVespera && diaHoje === diaVespera) {
+          // Vespera: send once per day (check if already sent today)
+          const hojeMeia = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+          if (!lastNotified || lastNotified < hojeMeia) {
+            titulo = `Amanha vence: ${d.descricao}`;
+            corpo = `Vencimento dia ${dia} - ${valor}`;
+            shouldSend = true;
+            tipo = 'vespera';
+          }
         }
 
-        // Check no_dia (on the day)
-        const isNoDia = (d.notificacao === 'no_dia' || d.notificacao === 'ambos');
-        if (isNoDia && diaHoje === dia) {
-          titulo = `Hoje vence: ${d.descricao}`;
-          corpo = `${valor} - dia ${dia}`;
-          shouldSend = true;
-        }
-
-        // Check overdue (after due date)
-        if (isNoDia && diaHoje > dia) {
-          const diasAtraso = diaHoje - dia;
-          titulo = `ATRASADO: ${d.descricao}`;
-          corpo = `${valor} - venceu dia ${dia} (${diasAtraso} dia${diasAtraso > 1 ? 's' : ''} atras)`;
-          shouldSend = true;
+        // On the day and after (no_dia)
+        const isNoDia = d.notificacao === 'no_dia' || d.notificacao === 'ambos';
+        if (isNoDia && diaHoje >= dia) {
+          // Check if enough time passed since last notification
+          const intervaloMs = intervaloHoras * 60 * 60 * 1000;
+          if (!lastNotified || (now.getTime() - lastNotified.getTime()) >= intervaloMs) {
+            if (diaHoje === dia) {
+              titulo = `Hoje vence: ${d.descricao}`;
+              corpo = `${valor} - dia ${dia}`;
+            } else {
+              const diasAtraso = diaHoje - dia;
+              titulo = `ATRASADO: ${d.descricao}`;
+              corpo = `${valor} - venceu dia ${dia} (${diasAtraso}d atras)`;
+            }
+            shouldSend = true;
+            tipo = 'no_dia';
+          }
         }
 
         if (!shouldSend) continue;
 
-        // Send to all subscriptions for this device
+        // Send to all subscriptions
+        let sent = false;
         for (const sub of subs) {
           const pushSub = {
             endpoint: sub.endpoint,
             keys: { p256dh: sub.p256dh, auth: sub.auth },
           };
-
           try {
             await webpush.sendNotification(pushSub, JSON.stringify({
               title: titulo,
@@ -109,19 +109,23 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
               badge: '/icon-192.png',
               data: { url: '/' },
             }));
+            sent = true;
             totalSent++;
           } catch (err: any) {
-            // Remove invalid subscriptions (410 Gone)
             if (err.statusCode === 410) {
               await sql`DELETE FROM push_subscriptions WHERE endpoint = ${sub.endpoint}`;
             }
-            console.error('Push error:', err.statusCode || err.message);
           }
+        }
+
+        // Update last_notified
+        if (sent) {
+          await sql`UPDATE despesas SET last_notified = NOW() WHERE id = ${d.id}`;
         }
       }
     }
 
-    return res.status(200).json({ ok: true, sent: totalSent });
+    return res.status(200).json({ ok: true, sent: totalSent, time: now.toISOString() });
   } catch (err: any) {
     console.error('Cron error:', err);
     return res.status(500).json({ error: err.message });

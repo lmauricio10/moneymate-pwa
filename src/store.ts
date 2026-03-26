@@ -80,12 +80,13 @@ export function loadDespesas(): Despesa[] {
     const raw = localStorage.getItem(STORAGE_KEY);
     if (!raw) return [];
     let despesas: Despesa[] = JSON.parse(raw);
-    // Migration: add status, projetoId, recorrencia
+    // Migration: add status, projetoId, recorrencia, intervaloHoras
     despesas = despesas.map((d) => ({
       ...d,
       status: d.status || 'pendente',
       projetoId: d.projetoId || 'pessoal',
       recorrencia: d.recorrencia || 'mensal',
+      intervaloHoras: d.intervaloHoras ?? 3,
     }));
     const { atualizadas, mudou } = resetarStatusMensal(despesas);
     if (mudou) {
