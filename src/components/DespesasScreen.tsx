@@ -230,14 +230,19 @@ export default function DespesasScreen({
                   </div>
                   {item.diaVencimento && item.notificacao !== 'nenhuma' && !isPago && (
                     <div style={{ color: colors.primary, fontSize: 11, marginTop: 2 }}>
-                      {NOTIFICACAO_LABELS[item.notificacao]}
+                      {NOTIFICACAO_LABELS[item.notificacao]} | a cada {item.intervaloHoras}h
                     </div>
                   )}
                   {isPago && <div style={{ color: colors.success, fontSize: 11, fontWeight: 700, marginTop: 2 }}>Pago</div>}
                 </div>
 
-                <div style={{ color: isPago ? colors.success : colors.expense, fontSize: 16, fontWeight: 700 }}>
-                  {fmt(item.valor)}
+                <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                  <div style={{ color: isPago ? colors.success : colors.expense, fontSize: 16, fontWeight: 700 }}>
+                    {fmt(item.valor)}
+                  </div>
+                  <button onClick={(e) => { e.stopPropagation(); handleCardClick(item); }}
+                    style={{ background: 'none', border: 'none', color: colors.textMuted, cursor: 'pointer', padding: 4, fontSize: 18 }}
+                    title="Editar">✎</button>
                 </div>
               </div>
             );
