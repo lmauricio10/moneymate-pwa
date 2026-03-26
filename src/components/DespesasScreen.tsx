@@ -20,7 +20,7 @@ interface Props {
   addDespesa: (d: Omit<Despesa, 'id' | 'criadoEm' | 'status'>) => void;
   updateDespesa: (id: string, changes: Partial<Omit<Despesa, 'id' | 'criadoEm'>>) => void;
   removeDespesa: (id: string) => void;
-  togglePago: (id: string) => void;
+  togglePago: (id: string, mesRef?: string) => void;
   getDespesasMes: (ano: number, mes: number) => Despesa[];
   getTotalMes: (ano: number, mes: number) => number;
   addProjeto: (nome: string) => void;
@@ -60,8 +60,15 @@ export default function DespesasScreen({
     });
   }, [despesas, projetoAtivo, ano, mes]);
 
+  // Status "pago" so vale para o mes visualizado (mesPago deve bater)
+  const mesKey = `${ano}-${String(mes).padStart(2, '0')}`;
+  const isPagoNesteMes = (d: Despesa) => {
+    if (!d.diaVencimento) return d.status === 'pago'; // despesa avulsa
+    return d.status === 'pago' && d.mesPago === mesKey;
+  };
+
   const totalMes = useMemo(() => despesasMes.reduce((s, d) => s + d.valor, 0), [despesasMes]);
-  const pendentes = useMemo(() => despesasMes.filter((d) => d.status !== 'pago').length, [despesasMes]);
+  const pendentes = useMemo(() => despesasMes.filter((d) => !isPagoNesteMes(d)).length, [despesasMes, mesKey]);
 
   const navMes = (dir: -1 | 1) => {
     let nm = mes + dir, na = ano;
@@ -189,11 +196,11 @@ export default function DespesasScreen({
           </div>
         ) : (
           despesasMes.map((item) => {
-            const isPago = item.status === 'pago';
+            const isPago = isPagoNesteMes(item);
             return (
               <div key={item.id} style={{ ...S.card, ...(isPago ? S.cardPago : {}) }}>
                 {/* Status button */}
-                <button onClick={(e) => { e.stopPropagation(); togglePago(item.id); }} style={S.statusBtn}>
+                <button onClick={(e) => { e.stopPropagation(); togglePago(item.id, mesKey); }} style={S.statusBtn}>
                   <div style={{
                     width: 26, height: 26, borderRadius: 13,
                     border: `2px solid ${isPago ? colors.success : colors.textMuted}`,

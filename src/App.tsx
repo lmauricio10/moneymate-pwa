@@ -78,16 +78,18 @@ export default function App() {
     });
   }, [saveAndSync]);
 
-  const togglePago = useCallback((id: string) => {
-    const mesAtual = (() => {
+  const togglePago = useCallback((id: string, mesRef?: string) => {
+    const mesAlvo = mesRef || (() => {
       const now = new Date();
       return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
     })();
     setDespesas((prev) => {
       const next = prev.map((d) => {
         if (d.id !== id) return d;
-        const novoStatus = d.status === 'pago' ? 'pendente' : 'pago';
-        return { ...d, status: novoStatus as 'pago' | 'pendente', mesPago: novoStatus === 'pago' ? mesAtual : undefined };
+        // Se ja esta pago neste mes, volta para pendente; senao marca como pago
+        const estaPagoNesteMes = d.status === 'pago' && d.mesPago === mesAlvo;
+        const novoStatus = estaPagoNesteMes ? 'pendente' : 'pago';
+        return { ...d, status: novoStatus as 'pago' | 'pendente', mesPago: novoStatus === 'pago' ? mesAlvo : undefined };
       });
       saveAndSync(next);
       return next;
