@@ -3,7 +3,8 @@ import { colors } from '../colors';
 import { CATEGORIAS, Categoria, Despesa, ModoNotificacao, Recorrencia, MESES_NOMES } from '../types';
 
 type DespesaInput = {
-  descricao: string;
+  titulo: string;
+  descricao?: string;
   valor: number;
   categoria: string;
   recorrencia: Recorrencia;
@@ -25,6 +26,7 @@ interface Props {
 }
 
 export default function AddDespesaModal({ open, onClose, onSave, onUpdate, onDelete, editDespesa, projetoId }: Props) {
+  const [titulo, setTitulo] = useState('');
   const [descricao, setDescricao] = useState('');
   const [valor, setValor] = useState('');
   const [categoria, setCategoria] = useState<Categoria>('Outros');
@@ -48,7 +50,8 @@ export default function AddDespesaModal({ open, onClose, onSave, onUpdate, onDel
 
   useEffect(() => {
     if (editDespesa) {
-      setDescricao(editDespesa.descricao);
+      setTitulo(editDespesa.titulo || '');
+      setDescricao(editDespesa.descricao || '');
       setValor(editDespesa.valor.toString().replace('.', ','));
       setCategoria(editDespesa.categoria as Categoria);
       setRecorrencia(editDespesa.recorrencia || 'mensal');
@@ -64,7 +67,7 @@ export default function AddDespesaModal({ open, onClose, onSave, onUpdate, onDel
   if (!open) return null;
 
   const reset = () => {
-    setDescricao(''); setValor('');
+    setTitulo(''); setDescricao(''); setValor('');
     setCategoria('Outros'); setRecorrencia('mensal');
     setDiaVencimento(''); setMesVencimento(1);
     setLembreteVespera(true); setLembreteNoDia(true);
@@ -73,7 +76,7 @@ export default function AddDespesaModal({ open, onClose, onSave, onUpdate, onDel
 
   const handleSave = () => {
     const valorNum = parseFloat(valor.replace(',', '.'));
-    if (!descricao.trim()) return setErro('Informe a descricao');
+    if (!titulo.trim()) return setErro('Informe o titulo');
     if (isNaN(valorNum) || valorNum <= 0) return setErro('Informe um valor valido');
     if (!diaVencimento.trim()) return setErro('Informe o dia de vencimento');
     const diaVenc = parseInt(diaVencimento, 10);
@@ -83,7 +86,8 @@ export default function AddDespesaModal({ open, onClose, onSave, onUpdate, onDel
     const intervalo = isNaN(mins) || mins < 1 ? 180 : mins;
 
     const data: DespesaInput = {
-      descricao: descricao.trim(), valor: valorNum, categoria,
+      titulo: titulo.trim(), descricao: descricao.trim() || undefined,
+      valor: valorNum, categoria,
       recorrencia,
       diaVencimento: diaVenc,
       mesVencimento: recorrencia === 'anual' ? mesVencimento : undefined,
@@ -100,7 +104,7 @@ export default function AddDespesaModal({ open, onClose, onSave, onUpdate, onDel
   };
 
   const handleDelete = () => {
-    if (isEdit && onDelete && confirm(`Remover "${editDespesa!.descricao}"?`)) {
+    if (isEdit && onDelete && confirm(`Remover "${editDespesa!.titulo}"?`)) {
       onDelete(editDespesa!.id);
       reset();
       onClose();
@@ -116,9 +120,14 @@ export default function AddDespesaModal({ open, onClose, onSave, onUpdate, onDel
         </div>
 
         <div style={S.form}>
-          <label style={S.label}>Descricao</label>
-          <input style={S.input} value={descricao} onChange={(e) => setDescricao(e.target.value)}
+          <label style={S.label}>Titulo</label>
+          <input style={S.input} value={titulo} onChange={(e) => setTitulo(e.target.value)}
             placeholder="Ex: Netflix, IPTU, Seguro..." />
+
+          <label style={S.label}>Descricao detalhada (opcional)</label>
+          <textarea style={{ ...S.input, minHeight: 100, fontFamily: 'inherit', resize: 'vertical' as const }}
+            value={descricao} onChange={(e) => setDescricao(e.target.value)}
+            placeholder="Notas, observacoes ou links (https://...)" />
 
           <label style={S.label}>Valor (R$)</label>
           <input style={S.input} value={valor} onChange={(e) => setValor(e.target.value)}

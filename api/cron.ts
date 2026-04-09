@@ -44,7 +44,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
       // Get pending despesas with vencimento and notifications enabled
       const despesas = await sql`
-        SELECT id, descricao, valor, dia_vencimento, mes_vencimento, recorrencia,
+        SELECT id, titulo, valor, dia_vencimento, mes_vencimento, recorrencia,
                notificacao, intervalo_horas, last_notified
         FROM despesas
         WHERE device_id = ${deviceId}
@@ -83,7 +83,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
           if (diaHoje === lastBizDay.getDate() && now.getMonth() === lastBizDay.getMonth()) {
             const hojeMeia = new Date(now.getFullYear(), now.getMonth(), now.getDate());
             if (!lastNotified || lastNotified < hojeMeia) {
-              titulo = `Amanha vence: ${d.descricao}`;
+              titulo = `Amanha vence: ${d.titulo}`;
               corpo = `Vencimento dia ${dia} - ${valor}`;
               shouldSend = true;
             }
@@ -97,11 +97,11 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
           const intervaloMs = intervaloMinutos * 60 * 1000;
           if (!lastNotified || (now.getTime() - lastNotified.getTime()) >= intervaloMs) {
             if (diaHoje === dia) {
-              titulo = `Hoje vence: ${d.descricao}`;
+              titulo = `Hoje vence: ${d.titulo}`;
               corpo = `${valor} - dia ${dia}`;
             } else {
               const diasAtraso = diaHoje - dia;
-              titulo = `ATRASADO: ${d.descricao}`;
+              titulo = `ATRASADO: ${d.titulo}`;
               corpo = `${valor} - venceu dia ${dia} (${diasAtraso}d atras)`;
             }
             shouldSend = true;

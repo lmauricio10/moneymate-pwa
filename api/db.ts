@@ -58,6 +58,14 @@ export async function initDb() {
   // Migration: add columns if missing
   await sql`ALTER TABLE despesas ADD COLUMN IF NOT EXISTS intervalo_horas NUMERIC DEFAULT 3`;
   await sql`ALTER TABLE despesas ADD COLUMN IF NOT EXISTS last_notified TIMESTAMP`;
+
+  // Migration titulo: o antigo `descricao` era o título.
+  // Adiciona coluna titulo, copia descricao -> titulo e limpa descricao para
+  // que esta passe a representar a descrição detalhada (com hyperlinks).
+  await sql`ALTER TABLE despesas ADD COLUMN IF NOT EXISTS titulo TEXT NOT NULL DEFAULT ''`;
+  await sql`ALTER TABLE despesas ALTER COLUMN descricao DROP NOT NULL`;
+  await sql`UPDATE despesas SET titulo = descricao, descricao = NULL
+            WHERE (titulo = '' OR titulo IS NULL) AND descricao IS NOT NULL`;
 }
 
 export { getDb };

@@ -102,9 +102,9 @@ export async function notificarVencimentos(despesas: Despesa[], config: Notifica
     const valor = `R$ ${d.valor.toFixed(2).replace('.', ',')}`;
     const diaHoje = new Date().getDate();
     let title: string;
-    if (d.diaVencimento! < diaHoje) title = `VENCIDA: ${d.descricao}`;
-    else if (d.diaVencimento! === diaHoje) title = `Hoje vence: ${d.descricao}`;
-    else title = `Vence em ${d.diaVencimento! - diaHoje} dia(s): ${d.descricao}`;
+    if (d.diaVencimento! < diaHoje) title = `VENCIDA: ${d.titulo}`;
+    else if (d.diaVencimento! === diaHoje) title = `Hoje vence: ${d.titulo}`;
+    else title = `Vence em ${d.diaVencimento! - diaHoje} dia(s): ${d.titulo}`;
 
     new Notification(title, {
       body: `Dia ${d.diaVencimento} - ${valor}`,

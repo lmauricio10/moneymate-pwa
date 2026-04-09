@@ -11,7 +11,8 @@ export interface Projeto {
 export interface Despesa {
   id: string;
   projetoId: string;
-  descricao: string;
+  titulo: string;
+  descricao?: string; // descrição detalhada, pode conter hyperlinks (http/https)
   valor: number;
   data: string; // YYYY-MM-DD
   categoria: string;

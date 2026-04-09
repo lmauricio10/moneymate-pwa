@@ -84,13 +84,21 @@ export function loadDespesas(): Despesa[] {
     if (!raw) return [];
     let despesas: Despesa[] = JSON.parse(raw);
     // Migration: add status, projetoId, recorrencia, intervaloMinutos
-    despesas = despesas.map((d: any) => ({
-      ...d,
-      status: d.status || 'pendente',
-      projetoId: d.projetoId || 'pessoal',
-      recorrencia: d.recorrencia || 'mensal',
-      intervaloMinutos: d.intervaloMinutos ?? (d.intervaloHoras ? d.intervaloHoras * 60 : 180),
-    }));
+    despesas = despesas.map((d: any) => {
+      // Migração titulo/descricao: o antigo `descricao` era o título.
+      // Se ainda não há `titulo`, promove descricao -> titulo e limpa descricao
+      // (a partir de agora descricao é a descrição detalhada com links).
+      const hasTitulo = typeof d.titulo === 'string' && d.titulo.length > 0;
+      return {
+        ...d,
+        status: d.status || 'pendente',
+        projetoId: d.projetoId || 'pessoal',
+        recorrencia: d.recorrencia || 'mensal',
+        intervaloMinutos: d.intervaloMinutos ?? (d.intervaloHoras ? d.intervaloHoras * 60 : 180),
+        titulo: hasTitulo ? d.titulo : (d.descricao || 'Sem título'),
+        descricao: hasTitulo ? d.descricao : undefined,
+      };
+    });
     const { atualizadas, mudou } = resetarStatusMensal(despesas);
     if (mudou) {
       localStorage.setItem(STORAGE_KEY, JSON.stringify(atualizadas));

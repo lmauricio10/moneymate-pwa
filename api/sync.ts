@@ -35,10 +35,11 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       const despesaIds = despesas.map((d: any) => d.id);
 
       for (const d of despesas) {
-        await sql`INSERT INTO despesas (id, device_id, projeto_id, descricao, valor, data, categoria, recorrencia, dia_vencimento, mes_vencimento, notificacao, intervalo_horas, status, mes_pago, criado_em)
-          VALUES (${d.id}, ${deviceId}, ${d.projetoId}, ${d.descricao}, ${d.valor}, ${d.data}, ${d.categoria}, ${d.recorrencia || 'mensal'}, ${d.diaVencimento || null}, ${d.mesVencimento || null}, ${d.notificacao}, ${d.intervaloMinutos ?? 180}, ${d.status || 'pendente'}, ${d.mesPago || null}, ${d.criadoEm})
+        await sql`INSERT INTO despesas (id, device_id, projeto_id, titulo, descricao, valor, data, categoria, recorrencia, dia_vencimento, mes_vencimento, notificacao, intervalo_horas, status, mes_pago, criado_em)
+          VALUES (${d.id}, ${deviceId}, ${d.projetoId}, ${d.titulo || ''}, ${d.descricao || null}, ${d.valor}, ${d.data}, ${d.categoria}, ${d.recorrencia || 'mensal'}, ${d.diaVencimento || null}, ${d.mesVencimento || null}, ${d.notificacao}, ${d.intervaloMinutos ?? 180}, ${d.status || 'pendente'}, ${d.mesPago || null}, ${d.criadoEm})
           ON CONFLICT (id) DO UPDATE SET
-            descricao = ${d.descricao},
+            titulo = ${d.titulo || ''},
+            descricao = ${d.descricao || null},
             valor = ${d.valor},
             data = ${d.data},
             categoria = ${d.categoria},

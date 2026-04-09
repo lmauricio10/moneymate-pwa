@@ -10,6 +10,23 @@ const MESES = [
 
 function fmt(v: number) { return `R$ ${v.toFixed(2).replace('.', ',')}`; }
 
+const URL_REGEX = /(https?:\/\/[^\s]+)/gi;
+function renderDescricao(text: string) {
+  const parts = text.split(URL_REGEX);
+  return parts.map((part, i) => {
+    if (/^https?:\/\//i.test(part)) {
+      return (
+        <a key={i} href={part} target="_blank" rel="noopener noreferrer"
+          onClick={(e) => e.stopPropagation()}
+          style={{ color: colors.primary, textDecoration: 'underline', wordBreak: 'break-all' }}>
+          {part}
+        </a>
+      );
+    }
+    return <span key={i}>{part}</span>;
+  });
+}
+
 const MAX_VISIBLE_PROJETOS = 3;
 
 interface Props {
@@ -100,7 +117,7 @@ export default function DespesasScreen({
     setShowModal(true);
   };
 
-  const handleSave = (d: { descricao: string; valor: number; categoria: string; recorrencia: any; diaVencimento?: number; mesVencimento?: number; notificacao: any; intervaloMinutos: number; projetoId: string }) => {
+  const handleSave = (d: { titulo: string; descricao?: string; valor: number; categoria: string; recorrencia: any; diaVencimento?: number; mesVencimento?: number; notificacao: any; intervaloMinutos: number; projetoId: string }) => {
     const data = d.diaVencimento
       ? `${ano}-${String(mes).padStart(2, '0')}-${String(d.diaVencimento).padStart(2, '0')}`
       : new Date().toISOString().split('T')[0];
@@ -219,8 +236,16 @@ export default function DespesasScreen({
                     textDecoration: isPago ? 'line-through' : 'none',
                     color: isPago ? colors.textMuted : colors.text,
                   }}>
-                    {item.descricao}
+                    {item.titulo}
                   </div>
+                  {item.descricao ? (
+                    <div style={{
+                      color: colors.textSecondary, fontSize: 13, marginTop: 4,
+                      whiteSpace: 'pre-wrap' as const, wordBreak: 'break-word' as const,
+                    }}>
+                      {renderDescricao(item.descricao)}
+                    </div>
+                  ) : null}
                   <div style={{ color: colors.textMuted, fontSize: 13, marginTop: 4 }}>
                     {item.categoria}
                     {item.diaVencimento ? ` | Dia ${item.diaVencimento}` : ''}
