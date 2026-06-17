@@ -159,11 +159,12 @@ export function syncToServer(despesas: Despesa[], config: NotificacaoConfig, pro
   }, 500);
 }
 
-export async function subscribeToPush(): Promise<boolean> {
+const PUSH_REGISTERED_KEY = 'moneymate_push_registered_endpoint';
+
+export async function subscribeToPush(force = false): Promise<boolean> {
   try {
     if (!('serviceWorker' in navigator) || !('PushManager' in window)) return false;
 
-    // Request notification permission first
     if (Notification.permission === 'default') {
       const result = await Notification.requestPermission();
       if (result !== 'granted') return false;
@@ -183,13 +184,19 @@ export async function subscribeToPush(): Promise<boolean> {
 
     if (!sub) return false;
 
-    // Send subscription to server
-    const deviceId = getDeviceId();
-    await fetch('/api/subscribe', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ deviceId, subscription: sub.toJSON() }),
-    });
+    // Only POST to /api/subscribe if the endpoint changed or user clicked the button.
+    // Idempotent on the server, but each call burns an edge request.
+    const endpoint = sub.endpoint;
+    const lastRegistered = localStorage.getItem(PUSH_REGISTERED_KEY);
+    if (force || lastRegistered !== endpoint) {
+      const deviceId = getDeviceId();
+      const res = await fetch('/api/subscribe', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ deviceId, subscription: sub.toJSON() }),
+      });
+      if (res.ok) localStorage.setItem(PUSH_REGISTERED_KEY, endpoint);
+    }
 
     return true;
   } catch (err) {

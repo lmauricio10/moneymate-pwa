@@ -49,7 +49,7 @@ export default function SettingsScreen({ config, despesas, projetos, updateConfi
   const handlePushTest = async () => {
     setPushStatus('idle');
     setPushMsg('');
-    const ok = await subscribeToPush();
+    const ok = await subscribeToPush(true);
     if (ok) {
       setPushStatus('ok');
       setPushMsg('Push subscription ativa');

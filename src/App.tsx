@@ -32,8 +32,7 @@ export default function App() {
     setProjetoAtivo(pa);
     setLoading(false);
     notificarVencimentos(d, c);
-    // Sync to server and subscribe to push on load
-    syncToServer(d, c, p);
+    // subscribeToPush() is idempotent: only POSTs to /api/subscribe if the endpoint changed.
     subscribeToPush();
   }, []);
 

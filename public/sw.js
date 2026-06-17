@@ -1,4 +1,4 @@
-const CACHE_NAME = 'moneymate-v1';
+const CACHE_NAME = 'moneymate-v2';
 const ASSETS = [
   '/',
   '/index.html',
@@ -34,7 +34,7 @@ self.addEventListener('push', (event) => {
       badge: data.badge || '/icon-192.png',
       vibrate: [200, 100, 200],
       data: data.data || {},
-      tag: data.title, // prevents duplicate notifications
+      tag: data.title,
       renotify: true,
     })
   );
@@ -53,18 +53,25 @@ self.addEventListener('notificationclick', (event) => {
   );
 });
 
+// Cache-first: only hit the network on cache miss.
+// Bypass /api/* (always live) and cross-origin (let the browser handle directly).
 self.addEventListener('fetch', (event) => {
   if (event.request.method !== 'GET') return;
+
+  const url = new URL(event.request.url);
+  if (url.origin !== self.location.origin) return;
+  if (url.pathname.startsWith('/api/')) return;
+
   event.respondWith(
     caches.match(event.request).then((cached) => {
-      const fetched = fetch(event.request).then((response) => {
-        if (response && response.status === 200) {
+      if (cached) return cached;
+      return fetch(event.request).then((response) => {
+        if (response && response.status === 200 && response.type === 'basic') {
           const clone = response.clone();
           caches.open(CACHE_NAME).then((cache) => cache.put(event.request, clone));
         }
         return response;
-      }).catch(() => cached);
-      return cached || fetched;
+      });
     })
   );
 });
