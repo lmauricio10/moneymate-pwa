@@ -14,65 +14,60 @@ export function getDb(env: Env): NeonQueryFunction<false, false> {
   return neon(url);
 }
 
-// Schema + idempotent migrations. Runs on every /api/sync call (cheap; CREATE/ALTER IF NOT EXISTS).
+// Schema + idempotent migrations. Batched into ONE transaction = one HTTP
+// subrequest, so it never trips Cloudflare's 50-subrequest/invocation cap.
 export async function initDb(env: Env): Promise<void> {
   const sql = getDb(env);
 
-  await sql`CREATE TABLE IF NOT EXISTS devices (
-    id TEXT PRIMARY KEY,
-    created_at TIMESTAMP DEFAULT NOW()
-  )`;
-
-  await sql`CREATE TABLE IF NOT EXISTS push_subscriptions (
-    id SERIAL PRIMARY KEY,
-    device_id TEXT NOT NULL REFERENCES devices(id) ON DELETE CASCADE,
-    endpoint TEXT NOT NULL,
-    p256dh TEXT NOT NULL,
-    auth TEXT NOT NULL,
-    created_at TIMESTAMP DEFAULT NOW(),
-    UNIQUE(device_id, endpoint)
-  )`;
-
-  await sql`CREATE TABLE IF NOT EXISTS projetos (
-    id TEXT PRIMARY KEY,
-    device_id TEXT NOT NULL REFERENCES devices(id) ON DELETE CASCADE,
-    nome TEXT NOT NULL,
-    criado_em TEXT NOT NULL
-  )`;
-
-  await sql`CREATE TABLE IF NOT EXISTS despesas (
-    id TEXT PRIMARY KEY,
-    device_id TEXT NOT NULL REFERENCES devices(id) ON DELETE CASCADE,
-    projeto_id TEXT NOT NULL,
-    descricao TEXT NOT NULL,
-    valor NUMERIC NOT NULL,
-    data TEXT NOT NULL,
-    categoria TEXT NOT NULL,
-    recorrencia TEXT DEFAULT 'mensal',
-    dia_vencimento INTEGER,
-    mes_vencimento INTEGER,
-    notificacao TEXT DEFAULT 'nenhuma',
-    intervalo_horas NUMERIC DEFAULT 3,
-    status TEXT DEFAULT 'pendente',
-    mes_pago TEXT,
-    last_notified TIMESTAMP,
-    criado_em TEXT NOT NULL
-  )`;
-
-  await sql`CREATE TABLE IF NOT EXISTS device_config (
-    device_id TEXT PRIMARY KEY REFERENCES devices(id) ON DELETE CASCADE,
-    config JSONB NOT NULL DEFAULT '{}'
-  )`;
-
-  // Migration: add columns if missing
-  await sql`ALTER TABLE despesas ADD COLUMN IF NOT EXISTS intervalo_horas NUMERIC DEFAULT 3`;
-  await sql`ALTER TABLE despesas ADD COLUMN IF NOT EXISTS last_notified TIMESTAMP`;
-
-  // Migration titulo: o antigo `descricao` era o título. Adiciona coluna titulo,
-  // copia descricao -> titulo e limpa descricao para que esta passe a representar
-  // a descrição detalhada (com hyperlinks).
-  await sql`ALTER TABLE despesas ADD COLUMN IF NOT EXISTS titulo TEXT NOT NULL DEFAULT ''`;
-  await sql`ALTER TABLE despesas ALTER COLUMN descricao DROP NOT NULL`;
-  await sql`UPDATE despesas SET titulo = descricao, descricao = NULL
-            WHERE (titulo = '' OR titulo IS NULL) AND descricao IS NOT NULL`;
+  await sql.transaction([
+    sql`CREATE TABLE IF NOT EXISTS devices (
+      id TEXT PRIMARY KEY,
+      created_at TIMESTAMP DEFAULT NOW()
+    )`,
+    sql`CREATE TABLE IF NOT EXISTS push_subscriptions (
+      id SERIAL PRIMARY KEY,
+      device_id TEXT NOT NULL REFERENCES devices(id) ON DELETE CASCADE,
+      endpoint TEXT NOT NULL,
+      p256dh TEXT NOT NULL,
+      auth TEXT NOT NULL,
+      created_at TIMESTAMP DEFAULT NOW(),
+      UNIQUE(device_id, endpoint)
+    )`,
+    sql`CREATE TABLE IF NOT EXISTS projetos (
+      id TEXT PRIMARY KEY,
+      device_id TEXT NOT NULL REFERENCES devices(id) ON DELETE CASCADE,
+      nome TEXT NOT NULL,
+      criado_em TEXT NOT NULL
+    )`,
+    sql`CREATE TABLE IF NOT EXISTS despesas (
+      id TEXT PRIMARY KEY,
+      device_id TEXT NOT NULL REFERENCES devices(id) ON DELETE CASCADE,
+      projeto_id TEXT NOT NULL,
+      descricao TEXT NOT NULL,
+      valor NUMERIC NOT NULL,
+      data TEXT NOT NULL,
+      categoria TEXT NOT NULL,
+      recorrencia TEXT DEFAULT 'mensal',
+      dia_vencimento INTEGER,
+      mes_vencimento INTEGER,
+      notificacao TEXT DEFAULT 'nenhuma',
+      intervalo_horas NUMERIC DEFAULT 3,
+      status TEXT DEFAULT 'pendente',
+      mes_pago TEXT,
+      last_notified TIMESTAMP,
+      criado_em TEXT NOT NULL
+    )`,
+    sql`CREATE TABLE IF NOT EXISTS device_config (
+      device_id TEXT PRIMARY KEY REFERENCES devices(id) ON DELETE CASCADE,
+      config JSONB NOT NULL DEFAULT '{}'
+    )`,
+    // Migrations (idempotent). Statements run in order within the transaction,
+    // so the UPDATE sees the columns added by the ALTERs above it.
+    sql`ALTER TABLE despesas ADD COLUMN IF NOT EXISTS intervalo_horas NUMERIC DEFAULT 3`,
+    sql`ALTER TABLE despesas ADD COLUMN IF NOT EXISTS last_notified TIMESTAMP`,
+    sql`ALTER TABLE despesas ADD COLUMN IF NOT EXISTS titulo TEXT NOT NULL DEFAULT ''`,
+    sql`ALTER TABLE despesas ALTER COLUMN descricao DROP NOT NULL`,
+    sql`UPDATE despesas SET titulo = descricao, descricao = NULL
+        WHERE (titulo = '' OR titulo IS NULL) AND descricao IS NOT NULL`,
+  ]);
 }
