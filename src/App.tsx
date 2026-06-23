@@ -179,16 +179,20 @@ export default function App() {
     const migradas = novas.map((d) => ({ ...d, status: d.status || ('pendente' as const), projetoId: d.projetoId || 'pessoal' }));
     setDespesas(migradas);
     saveDespesas(migradas);
+    const c = novaConfig ? { ...DEFAULT_CONFIG, ...novaConfig } : config;
     if (novaConfig) {
-      const c = { ...DEFAULT_CONFIG, ...novaConfig };
       setConfig(c);
       saveConfig(c);
     }
+    const p = novosProjetos && novosProjetos.length > 0 ? novosProjetos : projetos;
     if (novosProjetos && novosProjetos.length > 0) {
       setProjetos(novosProjetos);
       saveProjetos(novosProjetos);
     }
-  }, []);
+    // Push the imported data to the server so push reminders (driven by the
+    // server cron) cover it. Without this, an import only lived in localStorage.
+    syncToServer(migradas, c, p);
+  }, [config, projetos]);
 
   const getDespesasMes = useCallback((ano: number, mes: number) => {
     const prefix = `${ano}-${String(mes).padStart(2, '0')}`;
