@@ -11,13 +11,12 @@
   "dependencies": {
     "@neondatabase/serverless": "^1.0.2",
     "react": "^19.1.0",
-    "react-dom": "^19.1.0",
-    "web-push": "^3.6.7"
+    "react-dom": "^19.1.0"
   },
   "devDependencies": {
+    "@cloudflare/workers-types": "^4.20241106.0",
     "@types/react": "^19.1.0",
     "@types/react-dom": "^19.1.0",
-    "@vercel/node": "^5.6.20",
     "@vitejs/plugin-react": "^4.4.1",
     "typescript": "^5.9.2",
     "vite": "^6.3.5",

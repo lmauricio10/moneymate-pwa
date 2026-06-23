@@ -3,29 +3,31 @@
 Aplicação de gestão de despesas pessoais como **Progressive Web App**
 (instalável, offline-capable, com Web Push notifications).
 
-Live: https://moneymate-pwa.vercel.app
-
 ## Stack
 
 - **Frontend**: Vite + React + TypeScript
-- **Backend**: Vercel Serverless Functions (`api/*.ts`)
-- **DB**: Neon Postgres (`@neondatabase/serverless`)
-- **Push**: Web Push API + VAPID, agendado por Vercel Cron (`api/cron.ts`)
+- **Backend**: Cloudflare Pages Functions (`functions/api/*.ts`)
+- **DB**: Neon Postgres (`@neondatabase/serverless` — HTTP driver, corre no Workers runtime)
+- **Push**: Web Push API + VAPID. O envio (`functions/api/cron.ts`) usa uma
+  implementação Web Crypto (RFC 8291 + 8292) em `functions/_lib/webpush.ts`,
+  porque a lib `web-push` do npm **não** corre no runtime dos Workers.
+- **Cron**: serviço externo (cron-job.org) faz GET a `/api/cron` com
+  `Authorization: Bearer <CRON_SECRET>` (Pages não tem cron nativo).
 - **Storage local**: `localStorage` (com sync para o servidor via `/api/sync`)
 
 ## Deploy
 
-Push para `master` no repo `lmauricio10/moneymate-pwa` → Vercel faz auto-deploy.
+Push para `master` no repo `lmauricio10/moneymate-pwa` → Cloudflare Pages
+faz auto-deploy (build `npm run build`, output `dist/`).
 
-```bash
-# acompanhar
-vercel ls
-vercel inspect <deployment-url>
-```
+Config de runtime em `wrangler.toml`:
+- `compatibility_flags = ["nodejs_compat"]`
+- `pages_build_output_dir = "dist"`
 
-Variáveis de ambiente necessárias na Vercel:
+Variáveis de ambiente necessárias no Cloudflare Pages (Settings → Environment variables):
 - `POSTGRES_URL` (ou `DATABASE_URL`) — Neon connection string
-- VAPID keys para push notifications
+- `VAPID_PUBLIC_KEY`, `VAPID_PRIVATE_KEY` — chaves VAPID para push
+- `CRON_SECRET` — segredo partilhado com o cron-job.org para `/api/cron` e `/api/debug`
 
 ## Estrutura
 
@@ -39,12 +41,15 @@ src/
     DespesasScreen.tsx
     AddDespesaModal.tsx
     SettingsScreen.tsx
-api/
-  db.ts                 # schema + migrations (idempotentes)
-  sync.ts               # POST /api/sync — upsert despesas/projetos/config
-  subscribe.ts          # POST /api/subscribe — guarda push subscription
-  cron.ts               # GET  /api/cron    — corre via Vercel Cron, envia push
-  debug.ts              # GET  /api/debug   — inspeção
+functions/
+  _lib/
+    db.ts               # schema + migrations (idempotentes), getDb(env)
+    webpush.ts          # Web Crypto push (aes128gcm + VAPID ES256)
+  api/
+    sync.ts             # POST /api/sync      — upsert despesas/projetos/config
+    subscribe.ts        # POST /api/subscribe — guarda push subscription
+    cron.ts             # GET  /api/cron      — chamado pelo cron-job.org, envia push
+    debug.ts            # GET  /api/debug     — inspeção (Bearer CRON_SECRET)
 ```
 
 ## Modelo de Despesa
@@ -63,7 +68,7 @@ Cada despesa tem:
 Antes desta versão, o campo `descricao` funcionava como título. Para não
 perder dados:
 
-- **Postgres** (`api/db.ts` → `initDb()`): adiciona coluna `titulo TEXT NOT NULL DEFAULT ''`,
+- **Postgres** (`functions/_lib/db.ts` → `initDb()`): adiciona coluna `titulo TEXT NOT NULL DEFAULT ''`,
   torna `descricao` nullable, e copia `descricao → titulo` quando `titulo`
   está vazio (limpando depois `descricao` para esses registos).
 - **Frontend** (`src/store.ts` → `loadDespesas()`): mesma lógica em
@@ -75,9 +80,9 @@ Migrações são idempotentes — `initDb()` corre em cada call de `/api/sync`.
 
 ```bash
 npm install
-vercel dev   # corre Vite + funções serverless juntas
+npx wrangler pages dev -- npm run dev   # Vite + Pages Functions juntos
 # ou
-npm run dev  # só Vite (sem APIs)
+npm run dev                             # só Vite (sem APIs)
 ```
 
 ## Notas

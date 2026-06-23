@@ -1,39 +1,32 @@
-import type { VercelRequest, VercelResponse } from '@vercel/node';
-import { getDb, initDb } from './db.js';
+import { getDb, initDb, type Env } from '../_lib/db';
 
-export default async function handler(req: VercelRequest, res: VercelResponse) {
-  if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' });
+const json = (data: unknown, status = 200) =>
+  new Response(JSON.stringify(data), { status, headers: { 'Content-Type': 'application/json' } });
 
+export const onRequestPost: PagesFunction<Env> = async ({ request, env }) => {
   try {
-    const sql = getDb();
-    await initDb();
+    const sql = getDb(env);
+    await initDb(env);
 
-    const { deviceId, despesas, projetos, config } = req.body;
-    if (!deviceId) return res.status(400).json({ error: 'deviceId required' });
+    const { deviceId, despesas, projetos, config } = await request.json<any>();
+    if (!deviceId) return json({ error: 'deviceId required' }, 400);
 
-    // Upsert device
     await sql`INSERT INTO devices (id) VALUES (${deviceId}) ON CONFLICT (id) DO NOTHING`;
 
-    // Sync projetos - upsert all, remove deleted
     if (projetos && Array.isArray(projetos)) {
       const projetoIds = projetos.map((p: any) => p.id);
-
       for (const p of projetos) {
         await sql`INSERT INTO projetos (id, device_id, nome, criado_em)
           VALUES (${p.id}, ${deviceId}, ${p.nome}, ${p.criadoEm})
           ON CONFLICT (id) DO UPDATE SET nome = ${p.nome}`;
       }
-
-      // Remove projetos that no longer exist locally
       if (projetoIds.length > 0) {
         await sql`DELETE FROM projetos WHERE device_id = ${deviceId} AND id != ALL(${projetoIds})`;
       }
     }
 
-    // Sync despesas - upsert all, remove deleted
     if (despesas && Array.isArray(despesas)) {
       const despesaIds = despesas.map((d: any) => d.id);
-
       for (const d of despesas) {
         await sql`INSERT INTO despesas (id, device_id, projeto_id, titulo, descricao, valor, data, categoria, recorrencia, dia_vencimento, mes_vencimento, notificacao, intervalo_horas, status, mes_pago, criado_em)
           VALUES (${d.id}, ${deviceId}, ${d.projetoId}, ${d.titulo || ''}, ${d.descricao || null}, ${d.valor}, ${d.data}, ${d.categoria}, ${d.recorrencia || 'mensal'}, ${d.diaVencimento || null}, ${d.mesVencimento || null}, ${d.notificacao}, ${d.intervaloMinutos ?? 180}, ${d.status || 'pendente'}, ${d.mesPago || null}, ${d.criadoEm})
@@ -51,22 +44,20 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
             status = ${d.status || 'pendente'},
             mes_pago = ${d.mesPago || null}`;
       }
-
       if (despesaIds.length > 0) {
         await sql`DELETE FROM despesas WHERE device_id = ${deviceId} AND id != ALL(${despesaIds})`;
       }
     }
 
-    // Sync config
     if (config) {
       await sql`INSERT INTO device_config (device_id, config)
         VALUES (${deviceId}, ${JSON.stringify(config)})
         ON CONFLICT (device_id) DO UPDATE SET config = ${JSON.stringify(config)}`;
     }
 
-    return res.status(200).json({ ok: true });
+    return json({ ok: true });
   } catch (err: any) {
     console.error('Sync error:', err);
-    return res.status(500).json({ error: err.message });
+    return json({ error: err.message }, 500);
   }
-}
+};

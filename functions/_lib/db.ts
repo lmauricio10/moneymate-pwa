@@ -1,13 +1,22 @@
-import { neon } from '@neondatabase/serverless';
+import { neon, type NeonQueryFunction } from '@neondatabase/serverless';
 
-function getDb() {
-  const url = process.env.POSTGRES_URL || process.env.DATABASE_URL;
+export interface Env {
+  POSTGRES_URL?: string;
+  DATABASE_URL?: string;
+  CRON_SECRET: string;
+  VAPID_PUBLIC_KEY: string;
+  VAPID_PRIVATE_KEY: string;
+}
+
+export function getDb(env: Env): NeonQueryFunction<false, false> {
+  const url = env.POSTGRES_URL || env.DATABASE_URL;
   if (!url) throw new Error('POSTGRES_URL not set');
   return neon(url);
 }
 
-export async function initDb() {
-  const sql = getDb();
+// Schema + idempotent migrations. Runs on every /api/sync call (cheap; CREATE/ALTER IF NOT EXISTS).
+export async function initDb(env: Env): Promise<void> {
+  const sql = getDb(env);
 
   await sql`CREATE TABLE IF NOT EXISTS devices (
     id TEXT PRIMARY KEY,
@@ -59,13 +68,11 @@ export async function initDb() {
   await sql`ALTER TABLE despesas ADD COLUMN IF NOT EXISTS intervalo_horas NUMERIC DEFAULT 3`;
   await sql`ALTER TABLE despesas ADD COLUMN IF NOT EXISTS last_notified TIMESTAMP`;
 
-  // Migration titulo: o antigo `descricao` era o título.
-  // Adiciona coluna titulo, copia descricao -> titulo e limpa descricao para
-  // que esta passe a representar a descrição detalhada (com hyperlinks).
+  // Migration titulo: o antigo `descricao` era o título. Adiciona coluna titulo,
+  // copia descricao -> titulo e limpa descricao para que esta passe a representar
+  // a descrição detalhada (com hyperlinks).
   await sql`ALTER TABLE despesas ADD COLUMN IF NOT EXISTS titulo TEXT NOT NULL DEFAULT ''`;
   await sql`ALTER TABLE despesas ALTER COLUMN descricao DROP NOT NULL`;
   await sql`UPDATE despesas SET titulo = descricao, descricao = NULL
             WHERE (titulo = '' OR titulo IS NULL) AND descricao IS NOT NULL`;
 }
-
-export { getDb };
